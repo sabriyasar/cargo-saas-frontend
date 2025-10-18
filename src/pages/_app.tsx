@@ -1,10 +1,18 @@
 import React from "react";
-import 'antd/dist/reset.css';
-import "@/styles/globals.css";
-import "@/styles/returnForm.scss";
-import "@/styles/returnList.scss";
 import type { AppProps } from "next/app";
+import createApp from "@shopify/app-bridge";
 
 export default function App({ Component, pageProps }: AppProps) {
-  return <Component {...pageProps} />;
+  const host =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("host") || ""
+      : "";
+
+  const app = host ? createApp({
+    apiKey: process.env.NEXT_PUBLIC_SHOPIFY_API_KEY!,
+    host,
+    forceRedirect: true,
+  }) : null;
+
+  return <Component {...pageProps} app={app} />;
 }
