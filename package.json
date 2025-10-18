@@ -1,0 +1,28 @@
+{
+  "name": "return-saas-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 6060",
+    "build": "next build",
+    "start": "next start -p 6060",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "antd": "^5.27.4",
+    "axios": "^1.12.2",
+    "next": "15.5.3",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "sass": "^1.92.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.3",
+    "typescript": "^5"
+  }
+}
