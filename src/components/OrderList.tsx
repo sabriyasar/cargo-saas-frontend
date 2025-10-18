@@ -33,7 +33,7 @@ export default function OrderList() {
     try {
       const res = await getShopifyOrders(); // servis üzerinden fetch
       setOrders(res.data || []); // sadece data kısmını kullan
-      console.log(data);
+      console.log(res.data)
     } catch (err: unknown) {
       if (err instanceof Error) {
         message.error('Siparişler alınamadı: ' + err.message);
