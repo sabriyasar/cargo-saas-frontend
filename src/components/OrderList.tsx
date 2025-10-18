@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Table, message } from 'antd';
-import { getShopifyOrders } from '@/services/api';
 import MNGShipmentForm from './MNGShipmentForm';
+import { getShopifyOrders } from '@/services/api';
 
 // 🔹 Tip tanımı
 interface Order {
@@ -22,8 +22,12 @@ export default function OrderList() {
     try {
       const res = await getShopifyOrders();
       setOrders(res.data);
-    } catch (err: any) {
-      message.error('Siparişler alınamadı: ' + (err.message || 'Hata'));
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        message.error('Siparişler alınamadı: ' + err.message);
+      } else {
+        message.error('Siparişler alınamadı: Bilinmeyen hata');
+      }
     } finally { setLoading(false); }
   };
 
@@ -33,7 +37,7 @@ export default function OrderList() {
     { title: 'Toplam', dataIndex: 'total_price', key: 'total' },
     { 
       title: 'Kargo', key: 'shipment',
-      render: (_: any, record: Order) => <MNGShipmentForm order={record} />
+      render: (_value: unknown, record: Order) => <MNGShipmentForm order={record} />
     }
   ];
 

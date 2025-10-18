@@ -26,8 +26,12 @@ export default function MNGShipmentForm({ order }: Props) {
     try {
       const res = await createMNGShipment({ orderId: order.id, courier });
       message.success(`Kargo oluşturuldu. Takip No: ${res.data.trackingNumber}`);
-    } catch (err: any) {
-      message.error('Kargo oluşturulamadı: ' + (err.message || 'Hata'));
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        message.error('Kargo oluşturulamadı: ' + err.message);
+      } else {
+        message.error('Kargo oluşturulamadı: Bilinmeyen hata');
+      }
     } finally {
       setLoading(false);
     }

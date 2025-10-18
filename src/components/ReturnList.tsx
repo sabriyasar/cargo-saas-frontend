@@ -49,8 +49,18 @@ const ReturnList: React.FC<ReturnListProps> = ({ onBack }) => {
 
   const columns = [
     { title: 'ID', dataIndex: '_id', key: '_id' },
-    { title: 'Order', dataIndex: ['order', 'orderNumber'], key: 'order', render: (text: any) => text || '-' },
-    { title: 'Customer', dataIndex: ['customer', 'name'], key: 'customer', render: (text: any) => text || '-' },
+    { 
+      title: 'Order', 
+      dataIndex: ['order', 'orderNumber'], 
+      key: 'order', 
+      render: (text: string | undefined) => text || '-' 
+    },
+    { 
+      title: 'Customer', 
+      dataIndex: ['customer', 'name'], 
+      key: 'customer', 
+      render: (text: string | undefined) => text || '-' 
+    },
     { title: 'Reason', dataIndex: 'reason', key: 'reason' },
     { 
       title: 'Status', 
@@ -65,7 +75,7 @@ const ReturnList: React.FC<ReturnListProps> = ({ onBack }) => {
     {
       title: 'Shipment',
       key: 'shipment',
-      render: (_: any, record: ReturnType) => record.shipment ? (
+      render: (_: unknown, record: ReturnType) => record.shipment ? (
         <a href={record.shipment.labelUrl} target="_blank" rel="noreferrer">
           {record.shipment.trackingNumber}
         </a>
@@ -76,7 +86,7 @@ const ReturnList: React.FC<ReturnListProps> = ({ onBack }) => {
     {
       title: 'Kargo Durumu',
       key: 'check',
-      render: (_: any, record: ReturnType) => (
+      render: (_: unknown, record: ReturnType) => (
         record.shipment ? (
           <Button size="small" onClick={() => checkStatus(record._id)}>
             Durumu Sorgula
@@ -105,7 +115,7 @@ const ReturnList: React.FC<ReturnListProps> = ({ onBack }) => {
         dataSource={returns} 
         bordered 
         loading={loading}
-        scroll={{ x: 'max-content' }} // mobilde yatay scroll
+        scroll={{ x: 'max-content' }}
       />
     </Card>
   );

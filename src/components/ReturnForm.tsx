@@ -8,16 +8,27 @@ interface ReturnFormProps {
   onShowList?: () => void;
 }
 
+interface NewReturnFormValues {
+  order: string;
+  customer?: string;
+  reason: string;
+}
+
 const ReturnForm: React.FC<ReturnFormProps> = ({ onShowList }) => {
   const [loading, setLoading] = useState(false);
 
-  const onFinish = async (values: any) => {
+  const onFinish = async (values: NewReturnFormValues) => {
     setLoading(true);
     try {
       await createReturn(values);
       message.success('✅ İade talebi başarıyla oluşturuldu');
-    } catch (err: any) {
-      message.error('❌ İade talebi oluşturulamadı: ' + (err.message || 'Hata'));
+      onShowList?.();
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        message.error('❌ İade talebi oluşturulamadı: ' + err.message);
+      } else {
+        message.error('❌ İade talebi oluşturulamadı: Bilinmeyen hata');
+      }
     } finally {
       setLoading(false);
     }
@@ -29,9 +40,8 @@ const ReturnForm: React.FC<ReturnFormProps> = ({ onShowList }) => {
       title={<Title level={3} style={{ margin: 0 }}>Yeni İade Talebi</Title>}
       extra={
         <Button type="primary" danger onClick={onShowList}>
-  İade Talepleri
-</Button>
-
+          İade Talepleri
+        </Button>
       }
     >
       <Paragraph>Lütfen sipariş bilgilerinizi ve iade sebebini giriniz.</Paragraph>
