@@ -31,8 +31,12 @@ const ReturnList: React.FC<ReturnListProps> = ({ onBack }) => {
     try {
       const res = await getReturns();
       setReturns(res.data);
-    } catch (err: any) {
-      message.error('İade listesi alınamadı: ' + (err.message || 'Hata'));
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        message.error('İade listesi alınamadı: ' + err.message);
+      } else {
+        message.error('İade listesi alınamadı: Bilinmeyen hata');
+      }
     } finally {
       setLoading(false);
     }
@@ -41,79 +45,94 @@ const ReturnList: React.FC<ReturnListProps> = ({ onBack }) => {
   const checkStatus = async (id: string) => {
     try {
       const res = await checkReturnOrder({ referenceId: id });
-      message.info(`Kargo Durumu: ${res.data.statusDescription || JSON.stringify(res.data)}`);
-    } catch (err: any) {
-      message.error('Durum sorgulanamadı: ' + (err.message || 'Hata'));
+      message.info(
+        `Kargo Durumu: ${res.data.statusDescription || JSON.stringify(res.data)}`
+      );
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        message.error('Durum sorgulanamadı: ' + err.message);
+      } else {
+        message.error('Durum sorgulanamadı: Bilinmeyen hata');
+      }
     }
   };
 
   const columns = [
     { title: 'ID', dataIndex: '_id', key: '_id' },
-    { 
-      title: 'Order', 
-      dataIndex: ['order', 'orderNumber'], 
-      key: 'order', 
-      render: (text: string | undefined) => text || '-' 
+    {
+      title: 'Order',
+      dataIndex: ['order', 'orderNumber'],
+      key: 'order',
+      render: (text: string | undefined) => text || '-',
     },
-    { 
-      title: 'Customer', 
-      dataIndex: ['customer', 'name'], 
-      key: 'customer', 
-      render: (text: string | undefined) => text || '-' 
+    {
+      title: 'Customer',
+      dataIndex: ['customer', 'name'],
+      key: 'customer',
+      render: (text: string | undefined) => text || '-',
     },
     { title: 'Reason', dataIndex: 'reason', key: 'reason' },
-    { 
-      title: 'Status', 
-      dataIndex: 'status', 
-      key: 'status', 
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
       render: (status: string) => (
         <Tag color={status === 'shipped' ? 'green' : 'blue'}>
           {status === 'shipped' ? 'Kargolandı' : 'Beklemede'}
         </Tag>
-      ) 
+      ),
     },
     {
       title: 'Shipment',
       key: 'shipment',
-      render: (_: unknown, record: ReturnType) => record.shipment ? (
-        <a href={record.shipment.labelUrl} target="_blank" rel="noreferrer">
-          {record.shipment.trackingNumber}
-        </a>
-      ) : (
-        <ShipmentForm returnId={record._id} />
-      )
+      render: (_: unknown, record: ReturnType) =>
+        record.shipment ? (
+          <a href={record.shipment.labelUrl} target="_blank" rel="noreferrer">
+            {record.shipment.trackingNumber}
+          </a>
+        ) : (
+          <ShipmentForm returnId={record._id} />
+        ),
     },
     {
       title: 'Kargo Durumu',
       key: 'check',
-      render: (_: unknown, record: ReturnType) => (
+      render: (_: unknown, record: ReturnType) =>
         record.shipment ? (
           <Button size="small" onClick={() => checkStatus(record._id)}>
             Durumu Sorgula
           </Button>
-        ) : null
-      )
-    }
+        ) : null,
+    },
   ];
 
   return (
     <Card
       className="return-list-card"
       title={
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+          }}
+        >
           <Button type="default" onClick={onBack} style={{ marginBottom: 8 }}>
             ← Yeni İade Talebi
           </Button>
-          <Title level={3} style={{ margin: 0 }}>İade Talepleri</Title>
+          <Title level={3} style={{ margin: 0 }}>
+            İade Talepleri
+          </Title>
           <div />
         </div>
       }
     >
-      <Table 
-        rowKey="_id" 
-        columns={columns} 
-        dataSource={returns} 
-        bordered 
+      <Table
+        rowKey="_id"
+        columns={columns}
+        dataSource={returns}
+        bordered
         loading={loading}
         scroll={{ x: 'max-content' }}
       />

@@ -20,8 +20,12 @@ const ShipmentForm: React.FC<Props> = ({ returnId }) => {
     try {
       const res = await createShipment({ returnId, courier: values.courier });
       message.success(`Shipment oluşturuldu. Tracking: ${res.data.trackingNumber}`);
-    } catch (err: any) {
-      message.error('Shipment oluşturulamadı: ' + (err.message || 'Hata'));
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        message.error('Shipment oluşturulamadı: ' + err.message);
+      } else {
+        message.error('Shipment oluşturulamadı: Bilinmeyen hata');
+      }
     } finally {
       setLoading(false);
     }

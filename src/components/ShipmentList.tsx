@@ -18,11 +18,14 @@ export default function ShipmentList() {
   const fetchShipments = async () => {
     setLoading(true);
     try {
-      // API bağlanacak
       const res = await getShipment('all'); // placeholder
       setShipments(res.data);
-    } catch (err: any) {
-      message.error('Kargolar alınamadı: ' + (err.message || 'Hata'));
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        message.error('Kargolar alınamadı: ' + err.message);
+      } else {
+        message.error('Kargolar alınamadı: Bilinmeyen hata');
+      }
     } finally { setLoading(false); }
   };
 
