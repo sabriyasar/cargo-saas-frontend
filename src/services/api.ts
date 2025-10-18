@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3003';
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3003';
 
 export const getShopifyOrders = async () => {
   return axios.get(`${API_URL}/shipments/orders`);
