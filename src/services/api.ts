@@ -1,13 +1,41 @@
-import axios from 'axios';
+import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3003';
+// Prod veya local backend URL
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3003";
 
 export const getShopifyOrders = async () => {
-  return axios.get(`${API_URL}/shipments/orders`);
+  return axios.get(
+    `${API_URL}/shopify/orders?shop=myvunon.myshopify.com&status=any`
+  );
 };
 
-export const createMNGShipment = async (data: { orderId: string; courier: string }) => {
-  return axios.post(`${API_URL}/shipments/mng`, data);
+export const createMNGShipment = async (data: {
+  orderId: string;
+  courier: string;
+  isReturn?: boolean;
+  orderData: any; // frontend’den gelen orderData
+}) => {
+  return axios.post(`${API_URL}/shipments`, data);
+};
+
+export const createIndividualMNGShipment = async (
+  orderData: any,
+  courier: string
+) => {
+  // Bireysel gönderimde sahte orderId oluştur
+  const fakeOrderId = Date.now().toString();
+
+  return axios.post(`${API_URL}/shipments`, {
+    orderId: fakeOrderId,
+    courier,
+    isReturn: false,
+    orderData,
+  });
+};
+
+export const getShipmentsByOrderIds = async (orderIds: string) => {
+  // orderIds virgülle ayrılmış string: "123,124,125"
+  return axios.get(`${API_URL}/shipments?orderIds=${orderIds}`);
 };
 
 export const checkReturnOrder = async (criteria: {
@@ -44,4 +72,13 @@ export const createShipment = async (data: {
 
 export const getShipment = async (id: string) => {
   return axios.get(`${API_URL}/shipments/${id}`);
+};
+
+// 🔹 CBS şehir/ilçe servisleri
+export const getCities = async () => {
+  return axios.get(`${API_URL}/cbs/cities`);
+};
+
+export const getDistrictsByCityCode = async (cityCode: string) => {
+  return axios.get(`${API_URL}/cbs/districts/${cityCode}`);
 };

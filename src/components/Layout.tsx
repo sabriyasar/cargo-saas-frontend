@@ -4,8 +4,8 @@ import { useRouter } from 'next/router';
 import {
   AppstoreOutlined,
   ShoppingCartOutlined,
-  ContainerOutlined,
-  SyncOutlined
+  SyncOutlined,
+  UserOutlined
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
@@ -29,13 +29,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             Dashboard
           </Menu.Item>
           <Menu.Item key="/orders" icon={<ShoppingCartOutlined />} onClick={() => router.push('/orders')}>
-            Orders
-          </Menu.Item>
-          <Menu.Item key="/shipments" icon={<ContainerOutlined />} onClick={() => router.push('/shipments')}>
-            Shipments
+            Siparişler
           </Menu.Item>
           <Menu.Item key="/returns" icon={<SyncOutlined />} onClick={() => router.push('/returns')}>
-            Returns
+            İadeler
+          </Menu.Item>
+          <Menu.Item key="/individual-shipment" icon={<UserOutlined />} onClick={() => router.push('/individual-shipment')}>
+            Gönderi Oluştur
           </Menu.Item>
         </Menu>
       </Sider>
