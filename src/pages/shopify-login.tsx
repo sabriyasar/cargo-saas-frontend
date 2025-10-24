@@ -6,6 +6,9 @@ export default function ShopifyLogin() {
   const router = useRouter();
 
   useEffect(() => {
+    // 🔹 router query hazır değilse bekle
+    if (!router.isReady) return;
+
     const shop = router.query.shop as string;
     if (!shop) {
       alert("Shop parametresi eksik");
@@ -25,7 +28,7 @@ export default function ShopifyLogin() {
 
     // Shopify OAuth yönlendirmesi
     window.location.href = installUrl;
-  }, [router.query.shop]);
+  }, [router.isReady, router.query.shop]); // 🔹 dependency array güncellendi
 
   return <p>Redirecting to Shopify...</p>;
 }
