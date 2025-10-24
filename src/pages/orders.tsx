@@ -1,3 +1,4 @@
+// pages/orders.tsx
 import React, { useEffect, useState } from 'react';
 import { Table, message, Input } from 'antd';
 import AdminLayout from '@/components/Layout';
@@ -14,14 +15,18 @@ interface Customer {
   cityName?: string;
   districtName?: string;
   address?: string;
-  shop?: string;
+  shop?: string; // backend’den shop dönüyorsa
 }
 
 export interface Order {
   id: string;
   name: string;
   total_price: string;
+  currency?: string;
+  order_status_url?: string;
+  line_items?: { title: string; quantity: number }[];
   customer: Customer;
+  created_at?: string;
   trackingNumber?: string;
   labelUrl?: string;
 }
@@ -30,31 +35,35 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
+
   const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3003';
 
   useEffect(() => {
-    if (!router.isReady) return;
+    const fetchOrders = async () => {
+      // router.query.host fallback ile al
+      const host =
+        (router.query.host as string) ||
+        new URLSearchParams(window.location.search).get('host');
 
-    const host = router.query.host as string;
-    if (!host) {
-      console.error('Shopify host parametresi yok');
-      setLoading(false);
-      return;
-    }
+      if (!host) {
+        console.error('Shopify host parametresi yok');
+        setLoading(false);
+        return;
+      }
 
-    const app = createApp({
-      apiKey: process.env.NEXT_PUBLIC_SHOPIFY_API_KEY!,
-      host,
-      forceRedirect: true,
-    });
+      const app = createApp({
+        apiKey: process.env.NEXT_PUBLIC_SHOPIFY_API_KEY!,
+        host,
+        forceRedirect: true,
+      });
 
-    getSessionToken(app).then(async (token: string) => {
       try {
+        const token = await getSessionToken(app);
+
         const res = await axios.get(`${API_URL}/shopify/orders`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        // Backend’den gelen siparişleri state’e ata
         setOrders(res.data.data || []);
       } catch (err: any) {
         console.error('Orders fetch hatası:', err.message || err);
@@ -62,27 +71,36 @@ export default function OrdersPage() {
       } finally {
         setLoading(false);
       }
-    });
-  }, [router.isReady, router.query.host]);
+    };
 
-  const handleShipmentCreated = async (orderId: string, trackingNumber: string, labelUrl: string, shopDomain: string) => {
-    setOrders(prev =>
-      prev.map(o => (o.id === orderId ? { ...o, trackingNumber, labelUrl } : o))
-    );
+    if (router.isReady) fetchOrders();
+  }, [router.isReady]);
 
+  // Shopify fulfillment oluşturma
+  const createShopifyFulfillment = async (orderId: string, trackingNumber: string) => {
     try {
-      const res = await axios.get(`${API_URL}/shopify/settings/${shopDomain}`);
-      const accessToken = res.data.accessToken;
+      if (!orders[0]?.customer?.shop) return;
+
+      const shopRecord = await axios.get(`${API_URL}/shopify/settings/${orders[0].customer.shop}`);
+      const accessToken = shopRecord.data.accessToken;
       if (!accessToken) return;
 
       await axios.post(
-        `https://${shopDomain}/admin/api/2025-10/orders/${orderId}/fulfillments.json`,
+        `https://${orders[0].customer.shop}/admin/api/2025-10/orders/${orderId}/fulfillments.json`,
         { fulfillment: { tracking_number: trackingNumber, notify_customer: true } },
         { headers: { 'X-Shopify-Access-Token': accessToken } }
       );
     } catch (err) {
       console.error('Shopify fulfillment oluşturulamadı:', err);
     }
+  };
+
+  const handleShipmentCreated = async (orderId: string, trackingNumber: string, labelUrl: string) => {
+    setOrders(prev =>
+      prev.map(o => (o.id === orderId ? { ...o, trackingNumber, labelUrl } : o))
+    );
+
+    await createShopifyFulfillment(orderId, trackingNumber);
   };
 
   const handleEmailChange = (id: string, value: string) => {
@@ -94,19 +112,25 @@ export default function OrdersPage() {
   const columns = [
     { title: 'Sipariş Numarası', dataIndex: 'name', key: 'name' },
     { title: 'Müşteri', dataIndex: ['customer', 'name'], key: 'customer' },
-    { 
-      title: 'E-Posta', 
-      key: 'email', 
+    {
+      title: 'E-Posta',
+      key: 'email',
       render: (_: any, record: Order) => (
-        <Input value={record.customer.email} placeholder="E-posta giriniz" onChange={e => handleEmailChange(record.id, e.target.value)} />
-      )
+        <Input
+          value={record.customer.email}
+          placeholder="E-posta giriniz"
+          onChange={e => handleEmailChange(record.id, e.target.value)}
+        />
+      ),
     },
     { title: 'Telefon', dataIndex: ['customer', 'phone'], key: 'phone' },
-    { 
-      title: 'Adres', 
-      key: 'address', 
-      render: (_: any, record: Order) => `${record.customer.address}, ${record.customer.districtName}, ${record.customer.cityName}`
+    {
+      title: 'Adres',
+      key: 'address',
+      render: (_: any, record: Order) =>
+        `${record.customer.address}, ${record.customer.districtName}, ${record.customer.cityName}`,
     },
+    { title: 'Toplam', dataIndex: 'total_price', key: 'total' },
     {
       title: 'Takip No',
       key: 'tracking',
@@ -115,11 +139,8 @@ export default function OrdersPage() {
     {
       title: 'Kargo',
       key: 'shipment',
-      render: (_: any, record: Order) => (
-        <MNGShipmentForm
-          order={record}
-          onShipmentCreated={(orderId, trackingNumber, labelUrl) => handleShipmentCreated(orderId, trackingNumber, labelUrl, record.customer.shop || '')}
-        />
+      render: (_value: unknown, record: Order) => (
+        <MNGShipmentForm order={record} onShipmentCreated={handleShipmentCreated} />
       ),
     },
   ];
