@@ -3,10 +3,8 @@ import axios from "axios";
 // Prod veya local backend URL
 const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3003";
 
-export const getShopifyOrders = async () => {
-  return axios.get(
-    `${API_URL}/shopify/orders?shop=myvunon.myshopify.com&status=any`
-  );
+export const getShopifyOrders = async (shop: string) => {
+  return axios.get(`${API_URL}/shopify/orders?shop=${shop}&status=any`);
 };
 
 export const createMNGShipment = async (data: {

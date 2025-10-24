@@ -1,12 +1,24 @@
-import React from 'react';
+// pages/orders.tsx
+import React, { useEffect, useState } from 'react';
 import AdminLayout from '@/components/Layout';
 import OrderList from '@/components/OrderList';
+import { useRouter } from 'next/router';
 
 export default function OrdersPage() {
+  const router = useRouter();
+  const [shop, setShop] = useState<string>('');
+
+  useEffect(() => {
+    if (router.isReady) {
+      const shopParam = router.query.shop;
+      if (typeof shopParam === 'string') setShop(shopParam);
+    }
+  }, [router.isReady, router.query.shop]);
+
   return (
     <AdminLayout>
-      <h2>Shopify Orders</h2>
-      <OrderList />
+      <h2>Shopify Siparişleri</h2>
+      {shop ? <OrderList shop={shop} /> : <p>Shop parametresi yok</p>}
     </AdminLayout>
   );
 }

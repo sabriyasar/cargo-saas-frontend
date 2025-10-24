@@ -37,6 +37,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <Menu.Item key="/individual-shipment" icon={<UserOutlined />} onClick={() => router.push('/individual-shipment')}>
             Gönderi Oluştur
           </Menu.Item>
+          <Menu.Item key="/settings" icon={<UserOutlined />} onClick={() => router.push('/settings')}>
+            Ayarlar
+          </Menu.Item>
         </Menu>
       </Sider>
       <Layout>
