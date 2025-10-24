@@ -3,6 +3,7 @@ import { Layout, Menu } from 'antd';
 import { useRouter } from 'next/router';
 import {
   AppstoreOutlined,
+  ShopOutlined,
   ShoppingCartOutlined,
   SyncOutlined,
   UserOutlined
@@ -36,6 +37,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </Menu.Item>
           <Menu.Item key="/individual-shipment" icon={<UserOutlined />} onClick={() => router.push('/individual-shipment')}>
             Gönderi Oluştur
+          </Menu.Item>
+          <Menu.Item key="/shopify-shops" icon={<ShopOutlined />} onClick={() => router.push('/shopify-shops')}>
+            Shopify Mağazaları
           </Menu.Item>
           <Menu.Item key="/settings" icon={<UserOutlined />} onClick={() => router.push('/settings')}>
             Ayarlar
