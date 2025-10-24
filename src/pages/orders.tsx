@@ -1,9 +1,11 @@
+// pages/orders.tsx
 import React, { useEffect, useState } from 'react';
 import AdminLayout from '@/components/Layout';
 import OrderList from '@/components/OrderList';
 import { useRouter } from 'next/router';
 import createApp from '@shopify/app-bridge';
 import { getSessionToken } from '@shopify/app-bridge-utils';
+import axios from 'axios';
 
 export default function OrdersPage() {
   const [shop, setShop] = useState<string>('');
@@ -24,15 +26,22 @@ export default function OrdersPage() {
       forceRedirect: true,
     });
 
-    getSessionToken(app).then((token: string) => {
+    // 🔹 JWT ile backend çağrısı
+    getSessionToken(app).then(async (token: string) => {
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const shopDomain = payload['https://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'];
-        setShop(shopDomain);
+        const res = await axios.get(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/shopify/orders`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        // Backend shop domain’i döndürecek
+        setShop(res.data.shop);
       } catch (err) {
-        console.error('Shop bilgisini JWT’den çıkaramadık', err);
+        console.error('Orders fetch hatası:', err);
       }
-    });    
+    });
   }, [router.isReady, router.query.host]);
 
   return (
