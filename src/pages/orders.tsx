@@ -3,9 +3,9 @@ import React, { useEffect, useState } from 'react';
 import { Table, message, Input } from 'antd';
 import AdminLayout from '@/components/Layout';
 import MNGShipmentForm from '@/components/MNGShipmentForm';
-import createApp from '@shopify/app-bridge';
+import { getShopifyOrders } from '@/services/api';
 import { getSessionToken } from '@shopify/app-bridge-utils';
-import axios from 'axios';
+import createApp from '@shopify/app-bridge';
 import { useRouter } from 'next/router';
 
 interface Customer {
@@ -15,7 +15,7 @@ interface Customer {
   cityName?: string;
   districtName?: string;
   address?: string;
-  shop?: string; // backend’den shop dönüyorsa
+  shop?: string; // shop domain backend’den geliyorsa
 }
 
 export interface Order {
@@ -36,77 +36,67 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
 
-  const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3003';
-
   useEffect(() => {
     const fetchOrders = async () => {
-      // router.query.host fallback ile al
       const host =
         (router.query.host as string) ||
-        new URLSearchParams(window.location.search).get('host');
+        (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('host') : null);
+
+      console.log('[OrdersPage] router.isReady:', router.isReady);
+      console.log('[OrdersPage] router.query:', router.query);
+      console.log('[OrdersPage] host:', host);
 
       if (!host) {
-        console.error('Shopify host parametresi yok');
+        console.error('[OrdersPage] Shopify host parametresi yok');
+        message.error('Shopify host parametresi yok. Uygulamayı Shopify içinden açın.');
         setLoading(false);
         return;
       }
 
+      // App Bridge başlat
       const app = createApp({
         apiKey: process.env.NEXT_PUBLIC_SHOPIFY_API_KEY!,
         host,
         forceRedirect: true,
       });
 
+      let token: string;
       try {
-        const token = await getSessionToken(app);
+        token = await getSessionToken(app);
+        console.log('[OrdersPage] JWT token alındı. Length:', token.length);
+      } catch (err) {
+        console.error('[OrdersPage] getSessionToken error:', err);
+        message.error('Shopify session token alınamadı');
+        setLoading(false);
+        return;
+      }
 
-        const res = await axios.get(`${API_URL}/shopify/orders`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+      // Backend çağrısı
+      try {
+        console.log('[OrdersPage] getShopifyOrders çağrılıyor:', host);
+        const res = await getShopifyOrders(host);
+        console.log('[OrdersPage] getShopifyOrders result sample:', Array.isArray(res.data.data) ? res.data.data.slice(0,1) : res.data);
 
         setOrders(res.data.data || []);
       } catch (err: any) {
-        console.error('Orders fetch hatası:', err.message || err);
-        message.error('Siparişler alınamadı');
+        console.error('[OrdersPage] Orders fetch hatası:', err?.response?.status, err?.response?.data || err.message || err);
+        message.error('Siparişler alınamadı. Backend loglarına bakın.');
       } finally {
         setLoading(false);
       }
     };
 
     if (router.isReady) fetchOrders();
-  }, [router.isReady]);
+  }, [router.isReady, router.query.host]);
 
-  // Shopify fulfillment oluşturma
-  const createShopifyFulfillment = async (orderId: string, trackingNumber: string) => {
-    try {
-      if (!orders[0]?.customer?.shop) return;
-
-      const shopRecord = await axios.get(`${API_URL}/shopify/settings/${orders[0].customer.shop}`);
-      const accessToken = shopRecord.data.accessToken;
-      if (!accessToken) return;
-
-      await axios.post(
-        `https://${orders[0].customer.shop}/admin/api/2025-10/orders/${orderId}/fulfillments.json`,
-        { fulfillment: { tracking_number: trackingNumber, notify_customer: true } },
-        { headers: { 'X-Shopify-Access-Token': accessToken } }
-      );
-    } catch (err) {
-      console.error('Shopify fulfillment oluşturulamadı:', err);
-    }
-  };
-
-  const handleShipmentCreated = async (orderId: string, trackingNumber: string, labelUrl: string) => {
-    setOrders(prev =>
-      prev.map(o => (o.id === orderId ? { ...o, trackingNumber, labelUrl } : o))
-    );
-
-    await createShopifyFulfillment(orderId, trackingNumber);
+  const handleShipmentCreated = (orderId: string, trackingNumber: string, labelUrl: string, shopDomain?: string) => {
+    console.log(`[OrdersPage] handleShipmentCreated for order ${orderId}, tracking ${trackingNumber}`);
+    setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, trackingNumber, labelUrl } : o)));
+    // Shopify fulfillment servisi eklenebilir
   };
 
   const handleEmailChange = (id: string, value: string) => {
-    setOrders(prev =>
-      prev.map(o => (o.id === id ? { ...o, customer: { ...o.customer, email: value } } : o))
-    );
+    setOrders(prev => prev.map(o => (o.id === id ? { ...o, customer: { ...o.customer, email: value } } : o)));
   };
 
   const columns = [
@@ -116,19 +106,14 @@ export default function OrdersPage() {
       title: 'E-Posta',
       key: 'email',
       render: (_: any, record: Order) => (
-        <Input
-          value={record.customer.email}
-          placeholder="E-posta giriniz"
-          onChange={e => handleEmailChange(record.id, e.target.value)}
-        />
+        <Input value={record.customer.email} placeholder="E-posta giriniz" onChange={e => handleEmailChange(record.id, e.target.value)} />
       ),
     },
     { title: 'Telefon', dataIndex: ['customer', 'phone'], key: 'phone' },
     {
       title: 'Adres',
       key: 'address',
-      render: (_: any, record: Order) =>
-        `${record.customer.address}, ${record.customer.districtName}, ${record.customer.cityName}`,
+      render: (_: any, record: Order) => `${record.customer.address}, ${record.customer.districtName}, ${record.customer.cityName}`,
     },
     { title: 'Toplam', dataIndex: 'total_price', key: 'total' },
     {
@@ -140,7 +125,7 @@ export default function OrdersPage() {
       title: 'Kargo',
       key: 'shipment',
       render: (_value: unknown, record: Order) => (
-        <MNGShipmentForm order={record} onShipmentCreated={handleShipmentCreated} />
+        <MNGShipmentForm order={record} onShipmentCreated={(orderId, trackingNumber, labelUrl) => handleShipmentCreated(orderId, trackingNumber, labelUrl, record.customer.shop)} />
       ),
     },
   ];
@@ -148,14 +133,7 @@ export default function OrdersPage() {
   return (
     <AdminLayout>
       <h2>Shopify Siparişleri</h2>
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={orders}
-        loading={loading}
-        bordered
-        scroll={{ x: 'max-content' }}
-      />
+      <Table rowKey="id" columns={columns} dataSource={orders} loading={loading} bordered scroll={{ x: 'max-content' }} />
     </AdminLayout>
   );
 }
