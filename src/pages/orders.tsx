@@ -47,17 +47,22 @@ export default function OrderListPage() {
     try {
       const res = await getShopifyOrders(); // shop param yok, backend kendi .env'den alıyor
 
-      const ordersWithAddress = (res.data.data || []).map((order: any) => ({
-        ...order,
-        customer: {
-          ...order.customer,
-          phone: order.customer.phone || '',
-          cityName: normalize(order.customer.cityName || ''),
-          districtName: normalize(order.customer.districtName || ''),
-          address: order.customer.address || '',
-          email: order.customer.email || '',
-        },
-      }));
+      const ordersWithAddress = (res.data.data || []).map((order: any) => {
+        const customer = order.customer || {};
+        const shipping = order.shipping_address || {};
+      
+        return {
+          ...order,
+          customer: {
+            name: customer.first_name ? `${customer.first_name} ${customer.last_name}` : 'Misafir',
+            phone: customer.phone || shipping.phone || '',
+            email: customer.email || '',
+            cityName: shipping.city || '',
+            districtName: '', // Shopify API district yoksa boş bırak
+            address: shipping.address1 || '',
+          },
+        };
+      });      
 
       const orderIds = ordersWithAddress.map((o: any) => o.id).join(',');
       const shipmentRes = await getShipmentsByOrderIds(orderIds);
