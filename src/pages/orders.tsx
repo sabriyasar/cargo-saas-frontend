@@ -27,6 +27,34 @@ export interface Order {
   labelUrl?: string;
 }
 
+interface RawShippingAddress {
+  first_name?: string;
+  last_name?: string;
+  address1?: string;
+  city?: string;
+  province?: string;
+  phone?: string;
+}
+
+interface RawCustomer {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  default_address?: RawShippingAddress;
+}
+
+interface RawOrder {
+  id: string;
+  name?: string;
+  total_price?: string;
+  customer?: RawCustomer;
+  shipping_address?: RawShippingAddress;
+  phone?: string;
+  email?: string;
+  created_at?: string;
+}
+
 function normalize(str: string) {
   if (!str) return '';
   return str.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
@@ -46,23 +74,34 @@ export default function OrderListPage() {
     setLoading(true);
     try {
       const res = await getShopifyOrders(); // shop param yok, backend kendi .env'den alıyor
+      const rawOrders: RawOrder[] = res.data.data || [];
 
-      const ordersWithAddress = (res.data.data || []).map((order: any) => ({
-        ...order,
-        customer: {
-          ...order.customer,
-          phone: order.customer.phone || '',
-          cityName: normalize(order.customer.cityName || ''),
-          districtName: normalize(order.customer.districtName || ''),
-          address: order.customer.address || '',
-          email: order.customer.email || '',
-        },
-      }));
+      const ordersWithAddress: Order[] = rawOrders.map((order: RawOrder) => {
+        const customer = order.customer || {};
+        const shipping = order.shipping_address || customer.default_address || {};
 
-      const orderIds = ordersWithAddress.map((o: any) => o.id).join(',');
+        return {
+          id: order.id.toString(),
+          name: order.name || `#${order.id}`,
+          total_price: order.total_price || '0',
+          customer: {
+            name: customer.first_name
+              ? `${customer.first_name} ${customer.last_name || ''}`.trim()
+              : 'Müşteri Bilgisi Yok',
+            phone: customer.phone || shipping.phone || order.phone || '',
+            email: customer.email || order.email || '',
+            cityName: normalize(shipping.city || ''),
+            districtName: normalize(shipping.province || ''),
+            address: shipping.address1 || '',
+          },
+          created_at: order.created_at,
+        };
+      });
+
+      const orderIds = ordersWithAddress.map(o => o.id).join(',');
       const shipmentRes = await getShipmentsByOrderIds(orderIds);
 
-      const ordersWithShipments = ordersWithAddress.map((order: any) => {
+      const ordersWithShipments = ordersWithAddress.map(order => {
         const shipment = (shipmentRes.data || []).find((s: any) => s.orderId === order.id);
         return {
           ...order,
