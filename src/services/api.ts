@@ -8,6 +8,7 @@ export const getShopifyOrders = async (shop: string) => {
 };
 
 export const createMNGShipment = async (data: {
+  shop: string;
   orderId: string;
   courier: string;
   isReturn?: boolean;

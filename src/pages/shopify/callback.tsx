@@ -9,26 +9,33 @@ export default function ShopifyCallback() {
   const router = useRouter();
 
   useEffect(() => {
+    if (!router.isReady) return; // router.query hazır değilse çık
+
     const { shop, code, state } = router.query;
     const savedState = localStorage.getItem("shopify_oauth_state");
 
-    if (!shop || !code || !state) return;
+    if (!shop || !code || !state) {
+      console.warn("⚠️ Eksik query parametreleri:", { shop, code, state });
+      return;
+    }
+
     if (state !== savedState) {
       alert("State uyuşmadı!");
       return;
     }
 
-    // Token alma request'i backend'e gönder
+    console.log("✅ Shopify callback alındı:", { shop, code });
+
     axios.post(`${BACKEND_URL}/shopify/token`, { shop, code })
       .then(() => {
-        alert("Shopify OAuth başarılı!");
+        alert("✅ Shopify OAuth başarılı!");
         router.push(`/orders?shop=${shop}`);
       })
       .catch(err => {
-        console.error(err);
+        console.error("❌ OAuth hatası:", err);
         alert("OAuth başarısız");
       });
-  }, [router.query]);
+  }, [router.isReady, router.query]);
 
   return <p>Processing OAuth callback...</p>;
 }
