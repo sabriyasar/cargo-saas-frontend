@@ -1,29 +1,34 @@
 import axios from "axios";
 
-// Prod veya local backend URL
+// Backend URL (prod veya local)
 const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3003";
 
-export const getShopifyOrders = async (shop: string) => {
-  return axios.get(`${API_URL}/shopify/orders?shop=${shop}&status=any`);
+/* ================================
+   🔹 SHOPIFY SERVİSLERİ
+================================ */
+export const getShopifyOrders = async () => {
+  // Artık shop parametresi gerekmiyor
+  return axios.get(`${API_URL}/shopify/orders?status=any`);
 };
 
+export const createShopifyFulfillment = async (orderId: string, trackingNumber: string) => {
+  return axios.post(`${API_URL}/shopify/fulfillment`, { orderId, trackingNumber });
+};
+
+/* ================================
+   🔹 MNG KARGO / GÖNDERİ SERVİSLERİ
+================================ */
 export const createMNGShipment = async (data: {
-  shop: string;
   orderId: string;
   courier: string;
   isReturn?: boolean;
-  orderData: any; // frontend’den gelen orderData
+  orderData: any;
 }) => {
   return axios.post(`${API_URL}/shipments`, data);
 };
 
-export const createIndividualMNGShipment = async (
-  orderData: any,
-  courier: string
-) => {
-  // Bireysel gönderimde sahte orderId oluştur
+export const createIndividualMNGShipment = async (orderData: any, courier: string) => {
   const fakeOrderId = Date.now().toString();
-
   return axios.post(`${API_URL}/shipments`, {
     orderId: fakeOrderId,
     courier,
@@ -33,10 +38,12 @@ export const createIndividualMNGShipment = async (
 };
 
 export const getShipmentsByOrderIds = async (orderIds: string) => {
-  // orderIds virgülle ayrılmış string: "123,124,125"
   return axios.get(`${API_URL}/shipments?orderIds=${orderIds}`);
 };
 
+/* ================================
+   🔹 İADE / RETURN SERVİSLERİ
+================================ */
 export const checkReturnOrder = async (criteria: {
   referenceId?: string;
   shipmentId?: string;
@@ -62,10 +69,10 @@ export const updateReturnStatus = async (id: string, status: string) => {
   return axios.patch(`${API_URL}/returns/${id}`, { status });
 };
 
-export const createShipment = async (data: {
-  returnId: string;
-  courier: string;
-}) => {
+/* ================================
+   🔹 TEKİL KARGO SERVİSLERİ
+================================ */
+export const createShipment = async (data: { returnId: string; courier: string }) => {
   return axios.post(`${API_URL}/shipments`, data);
 };
 
@@ -73,7 +80,9 @@ export const getShipment = async (id: string) => {
   return axios.get(`${API_URL}/shipments/${id}`);
 };
 
-// 🔹 CBS şehir/ilçe servisleri
+/* ================================
+   🔹 CBS (ŞEHİR / İLÇE) SERVİSLERİ
+================================ */
 export const getCities = async () => {
   return axios.get(`${API_URL}/cbs/cities`);
 };

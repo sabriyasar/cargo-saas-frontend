@@ -1,4 +1,21 @@
 // pages/orders.tsx
+import React from 'react';
+import AdminLayout from '@/components/Layout';
+import OrderList from '@/components/OrderList';
+
+export default function OrdersPage() {
+  return (
+    <AdminLayout>
+      <h2>Shopify Siparişleri</h2>
+      <OrderList />
+    </AdminLayout>
+  );
+}
+
+
+/* PUBLIC APP
+
+// pages/orders.tsx
 import React, { useEffect, useState } from 'react';
 import AdminLayout from '@/components/Layout';
 import OrderList from '@/components/OrderList';
@@ -22,3 +39,4 @@ export default function OrdersPage() {
     </AdminLayout>
   );
 }
+ */

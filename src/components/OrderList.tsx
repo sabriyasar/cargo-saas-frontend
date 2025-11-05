@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Table, message, Input } from 'antd';
 import AdminLayout from '@/components/Layout';
 import MNGShipmentForm from './MNGShipmentForm';
-import { getShopifyOrders, getShipmentsByOrderIds, createMNGShipment } from '@/services/api';
+import { getShopifyOrders, getShipmentsByOrderIds } from '@/services/api';
 import axios from 'axios';
 
 interface Customer {
@@ -29,24 +29,23 @@ export interface Order {
 
 function normalize(str: string) {
   if (!str) return '';
-  return str.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  return str.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
 }
 
-export default function OrderListPage({ shop }: { shop: string }) {
+export default function OrderListPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
   const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3003';
 
   useEffect(() => {
-    if (!shop) return;
     fetchOrders();
-  }, [shop]);
+  }, []);
 
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const res = await getShopifyOrders(shop);
+      const res = await getShopifyOrders(); // shop param yok, backend kendi .env'den alıyor
 
       const ordersWithAddress = (res.data.data || []).map((order: any) => ({
         ...order,
@@ -81,12 +80,12 @@ export default function OrderListPage({ shop }: { shop: string }) {
     }
   };
 
-  // 🔹 Shopify Fulfillment oluşturma
   const createShopifyFulfillment = async (orderId: string, trackingNumber: string) => {
     try {
-      const shopRecord = await axios.get(`${API_URL}/shopify/settings/${shop}`);
+      const shopRecord = await axios.get(`${API_URL}/shopify/settings`);
       const accessToken = shopRecord.data.accessToken;
-      if (!accessToken) return;
+      const shop = shopRecord.data.shop;
+      if (!accessToken || !shop) return;
 
       await axios.post(
         `https://${shop}/admin/api/2025-10/orders/${orderId}/fulfillments.json`,
@@ -106,11 +105,7 @@ export default function OrderListPage({ shop }: { shop: string }) {
   };
 
   const handleShipmentCreated = async (orderId: string, trackingNumber: string, labelUrl: string) => {
-    setOrders(prev =>
-      prev.map(o => o.id === orderId ? { ...o, trackingNumber, labelUrl } : o)
-    );
-
-    // Shopify’a fulfillment gönder
+    setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, trackingNumber, labelUrl } : o)));
     await createShopifyFulfillment(orderId, trackingNumber);
   };
 
@@ -123,23 +118,23 @@ export default function OrderListPage({ shop }: { shop: string }) {
   const columns = [
     { title: 'Sipariş Numarası', dataIndex: 'name', key: 'name' },
     { title: 'Müşteri', dataIndex: ['customer', 'name'], key: 'customer' },
-    { 
-      title: 'E-Posta', 
-      key: 'email', 
+    {
+      title: 'E-Posta',
+      key: 'email',
       render: (_: any, record: Order) => (
-        <Input 
-          value={record.customer.email} 
-          placeholder="E-posta giriniz" 
-          onChange={e => handleEmailChange(record.id, e.target.value)} 
+        <Input
+          value={record.customer.email}
+          placeholder="E-posta giriniz"
+          onChange={e => handleEmailChange(record.id, e.target.value)}
         />
-      )
+      ),
     },
     { title: 'Telefon', dataIndex: ['customer', 'phone'], key: 'phone' },
-    { 
-      title: 'Adres', 
-      key: 'address', 
-      render: (_: any, record: Order) => 
-        `${record.customer.address}, ${record.customer.districtName}, ${record.customer.cityName}`
+    {
+      title: 'Adres',
+      key: 'address',
+      render: (_: any, record: Order) =>
+        `${record.customer.address}, ${record.customer.districtName}, ${record.customer.cityName}`,
     },
     { title: 'Toplam', dataIndex: 'total_price', key: 'total' },
     {
@@ -151,10 +146,7 @@ export default function OrderListPage({ shop }: { shop: string }) {
       title: 'Kargo',
       key: 'shipment',
       render: (_value: unknown, record: Order) => (
-        <MNGShipmentForm 
-          order={record} 
-          onShipmentCreated={handleShipmentCreated} 
-        />
+        <MNGShipmentForm order={record} onShipmentCreated={handleShipmentCreated} />
       ),
     },
   ];
