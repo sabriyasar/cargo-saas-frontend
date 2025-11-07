@@ -25,25 +25,3 @@ export default function Dashboard() {
     </AdminLayout>
   );
 }
-
-/* // pages/index.tsx
-import React, { useState } from "react";
-import ReturnForm from "@/components/ReturnForm";
-import ReturnList from "@/components/ReturnList";
-
-const HomePage: React.FC = () => {
-  const [showList, setShowList] = useState(false);
-
-  return (
-    <div style={{ padding: 16 }}>
-      {showList ? (
-        <ReturnList onBack={() => setShowList(false)} />
-      ) : (
-        <ReturnForm onShowList={() => setShowList(true)} />
-      )}
-    </div>
-  );
-};
-
-export default HomePage;
- */
