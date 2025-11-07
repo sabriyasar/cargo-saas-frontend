@@ -25,36 +25,68 @@ interface Props {
   onShipmentCreated?: (orderId: string, trackingNumber: string, labelUrl: string) => void;
 }
 
+// 🔹 Karakter normalize eder ve Türkçe büyük harfe çevirir
+const normalizeCityName = (str: string = '') =>
+  str
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleUpperCase('tr-TR');
+
+// 🔹 Görsel isim formatı (İlk harf büyük, diğerleri küçük) — Türkçe uyumlu
+const formatDisplayName = (name: string = '') =>
+  name
+    .toLocaleLowerCase('tr-TR')
+    .split(' ')
+    .map(word => word.charAt(0).toLocaleUpperCase('tr-TR') + word.slice(1))
+    .join(' ');
+
 export default function MNGShipmentForm({ order, isReturn = false, onShipmentCreated }: Props) {
   const [loading, setLoading] = useState(false);
   const [cities, setCities] = useState<{ code: string; name: string }[]>([]);
   const [districts, setDistricts] = useState<{ code: string; name: string }[]>([]);
-  const [selectedCity, setSelectedCity] = useState(order.customer.cityName || '');
-  const [selectedDistrict, setSelectedDistrict] = useState(order.customer.districtName || '');
+  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   const [courier, setCourier] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [labelUrl, setLabelUrl] = useState('');
   const [loadingDistricts, setLoadingDistricts] = useState(false);
 
-  // Sayfa açıldığında şehirleri al
+  // 🔹 Şehirleri yükle
   useEffect(() => {
     fetchCities();
   }, []);
 
-  // Eğer seçili şehir varsa cityCode ile ilçeleri yükle
+  // 🔹 Shopify adresinden city ve district match et
   useEffect(() => {
-    if (selectedCity && cities.length > 0) {
-      const city = cities.find(c => c.name === selectedCity);
-      if (city) fetchDistricts(city.code);
+    if (cities.length === 0) return;
+    const normalizedCustomerCity = normalizeCityName(order.customer.cityName);
+    const foundCity = cities.find(c => normalizeCityName(c.name) === normalizedCustomerCity);
+    if (foundCity) {
+      setSelectedCity(foundCity.name);
+      fetchDistricts(foundCity.code);
     }
-  }, [selectedCity, cities]);
+  }, [cities]);
+
+  // 🔹 İlçeyi eşleştir
+  useEffect(() => {
+    if (districts.length === 0 || !order.customer.districtName) return;
+    const normalizedDistrict = normalizeCityName(order.customer.districtName);
+    const foundDistrict = districts.find(d => normalizeCityName(d.name) === normalizedDistrict);
+    if (foundDistrict) setSelectedDistrict(foundDistrict.name);
+  }, [districts]);
 
   const fetchCities = async () => {
     try {
       const res = await getCities();
-      setCities(res.data || []);
+      const cityList = (res.data?.data || res.data || []).map((c: any) => ({
+        ...c,
+        name: formatDisplayName(c.name),
+      }));
+      setCities(cityList);
     } catch (err) {
       console.error('Şehirler alınamadı', err);
+      message.error('Şehirler alınamadı.');
     }
   };
 
@@ -62,9 +94,14 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
     setLoadingDistricts(true);
     try {
       const res = await getDistrictsByCityCode(cityCode);
-      setDistricts(res.data || []);
+      const districtList = (res.data?.data || res.data || []).map((d: any) => ({
+        ...d,
+        name: formatDisplayName(d.name),
+      }));
+      setDistricts(districtList);
     } catch (err) {
       console.error('İlçeler alınamadı', err);
+      message.error('İlçeler alınamadı.');
       setDistricts([]);
     } finally {
       setLoadingDistricts(false);
@@ -79,84 +116,55 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
   };
 
   const handleCreateShipment = async () => {
-    // 🔹 Müşteri adı soyad kontrolü
     if (!order.customer.name || order.customer.name.trim() === '') {
       return message.warning('Müşteri adı soyadı boş. Lütfen önce doldurun.');
     }
-  
-    if (!courier) return message.warning('Kargo firması seçin');
-    if (!selectedCity || !selectedDistrict)
-      return message.warning('Lütfen şehir ve ilçe bilgilerini seçin.');
-  
+    if (!courier) return message.warning('Kargo firması seçin.');
+    if (!selectedCity) return message.warning('Lütfen şehir seçin.');
+    if (!selectedDistrict) return message.warning('Lütfen ilçe seçin.');
+
     setLoading(true);
     try {
       const city = cities.find(c => c.name === selectedCity);
       const district = districts.find(d => d.name === selectedDistrict);
-  
+
       const orderData = {
         referenceId: order.id,
         content: `Sipariş: ${order.name}`,
         pieces: [{ barcode: `${order.id}_1`, desi: 2, kg: 1, content: 'Parça 1' }],
-        recipient: Number(process.env.NEXT_PUBLIC_MNG_CUSTOMER_ID)
-          ? {
-              customerId: Number(process.env.NEXT_PUBLIC_MNG_CUSTOMER_ID),
-              refCustomerId: '',
-              cityCode: 0,
-              districtCode: 0,
-              cityName: '',
-              districtName: '',
-              address: '',
-              bussinessPhoneNumber: '',
-              email: '',
-              taxOffice: '',
-              taxNumber: '',
-              fullName: '',
-              homePhoneNumber: '',
-              mobilePhoneNumber: ''
-            }
-          : {
-              customerId: 0,
-              refCustomerId: '',
-              cityCode: city?.code || 0,
-              districtCode: district?.code || 0,
-              cityName: selectedCity,
-              districtName: selectedDistrict,
-              address: order.customer.address || '',
-              bussinessPhoneNumber: '',
-              email: order.customer.email || '',
-              taxOffice: '',
-              taxNumber: '',
-              fullName: order.customer.name, // artık boş olamaz
-              homePhoneNumber: '',
-              mobilePhoneNumber: order.customer.phone || ''
-            }
+        recipient: {
+          customerId: 0,
+          refCustomerId: '',
+          cityCode: city?.code || 0,
+          districtCode: district?.code || 0,
+          cityName: selectedCity,
+          districtName: selectedDistrict,
+          address: order.customer.address || '',
+          email: order.customer.email || '',
+          fullName: order.customer.name,
+          mobilePhoneNumber: order.customer.phone || '',
+        },
       };
-  
+
       const res = await createMNGShipment({
         orderId: order.id,
         courier,
         isReturn,
         orderData,
       });
-  
+
       setTrackingNumber(res.data.trackingNumber || '');
       setLabelUrl(res.data.labelUrl || '');
-  
-      if (res.data.trackingNumber && onShipmentCreated) {
-        onShipmentCreated(order.id, res.data.trackingNumber, res.data.labelUrl || '');
-      }
-  
-      const typeText = isReturn ? 'İade kargo' : 'Kargo';
-      message.success(`${typeText} oluşturuldu. Takip No: ${res.data.trackingNumber}`);
-      if (res.data.trackingNumber) message.info('Shopify siparişi fulfillment ile güncellendi.');
-  
+      onShipmentCreated?.(order.id, res.data.trackingNumber, res.data.labelUrl || '');
+
+      message.success(`Kargo oluşturuldu. Takip No: ${res.data.trackingNumber}`);
     } catch (err: unknown) {
-      if (err instanceof Error) message.error('Kargo oluşturulamadı: ' + err.message);
-      else message.error('Kargo oluşturulamadı: Bilinmeyen hata');
+      console.error(err);
+      message.error('Kargo oluşturulamadı.');
     } finally {
       setLoading(false);
     }
-  };  
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -165,6 +173,8 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
           style={{ width: 150 }}
           placeholder="Kargo Firması"
           onChange={setCourier}
+          value={courier || undefined}
+          status={!courier ? 'error' : undefined}
         >
           <Option value="MNG">MNG</Option>
         </Select>
@@ -174,9 +184,12 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
           placeholder="Şehir"
           value={selectedCity || undefined}
           onChange={handleCityChange}
+          status={!selectedCity ? 'error' : undefined}
         >
           {cities.map(c => (
-            <Option key={c.code} value={c.name}>{c.name}</Option>
+            <Option key={c.code} value={c.name}>
+              {c.name}
+            </Option>
           ))}
         </Select>
 
@@ -186,9 +199,13 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
           value={selectedDistrict || undefined}
           onChange={setSelectedDistrict}
           loading={loadingDistricts}
+          disabled={!selectedCity}
+          status={!selectedDistrict ? 'error' : undefined}
         >
           {districts.map(d => (
-            <Option key={d.code} value={d.name}>{d.name}</Option>
+            <Option key={d.code} value={d.name}>
+              {d.name}
+            </Option>
           ))}
         </Select>
 
@@ -199,8 +216,12 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
 
       {trackingNumber && (
         <Paragraph>
-          <strong>Takip No:</strong> {trackingNumber} <br/>
-          {labelUrl && <Link href={labelUrl} target="_blank">PDF Label</Link>}
+          <strong>Takip No:</strong> {trackingNumber} <br />
+          {labelUrl && (
+            <Link href={labelUrl} target="_blank">
+              PDF Label
+            </Link>
+          )}
         </Paragraph>
       )}
     </div>

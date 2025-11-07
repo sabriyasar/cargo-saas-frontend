@@ -57,7 +57,8 @@ interface RawOrder {
 
 function normalize(str: string) {
   if (!str) return '';
-  return str.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+  const lower = str.trim().toLocaleLowerCase('tr-TR'); // Türkçe küçük harf
+  return lower.charAt(0).toLocaleUpperCase('tr-TR') + lower.slice(1);
 }
 
 export default function OrderListPage() {
@@ -192,7 +193,7 @@ export default function OrderListPage() {
 
   return (
     <AdminLayout>
-      <h2>Shopify Orders</h2>
+      <h2>Siparişler</h2>
       <Table
         rowKey="id"
         columns={columns}
@@ -204,32 +205,3 @@ export default function OrderListPage() {
     </AdminLayout>
   );
 }
-
-
-/* PUBLIC APP
-
-// pages/orders.tsx
-import React, { useEffect, useState } from 'react';
-import AdminLayout from '@/components/Layout';
-import OrderList from '@/components/OrderList';
-import { useRouter } from 'next/router';
-
-export default function OrdersPage() {
-  const router = useRouter();
-  const [shop, setShop] = useState<string>('');
-
-  useEffect(() => {
-    if (router.isReady) {
-      const shopParam = router.query.shop;
-      if (typeof shopParam === 'string') setShop(shopParam);
-    }
-  }, [router.isReady, router.query.shop]);
-
-  return (
-    <AdminLayout>
-      <h2>Shopify Siparişleri</h2>
-      {shop ? <OrderList shop={shop} /> : <p>Shop parametresi yok</p>}
-    </AdminLayout>
-  );
-}
- */
