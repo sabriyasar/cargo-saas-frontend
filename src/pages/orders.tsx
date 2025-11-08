@@ -104,8 +104,10 @@ export default function OrderListPage() {
       const shipmentRes = await getShipmentsByOrderIds(orderIds);
 
       const ordersWithShipments = ordersWithAddress.map(order => {
-        const shipment = (shipmentRes.data || []).find((s: any) => s.orderId === order.id);
-        return {
+        const shipment = (shipmentRes.data || []).find(
+          (s: any) => String(s.orderId) === String(order.id)
+        );
+                return {
           ...order,
           trackingNumber: shipment?.trackingNumber,
           labelUrl: shipment?.labelUrl,
