@@ -52,7 +52,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             icon={<ShoppingCartOutlined />}
             onClick={() => router.push('/orders')}
           >
-            Siparişler
+            Gönderiler
           </Menu.Item>
           <Menu.Item
             key="/returns"

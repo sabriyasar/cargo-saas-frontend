@@ -25,6 +25,7 @@ export interface Order {
   created_at?: string;
   trackingNumber?: string;
   labelUrl?: string;
+  barcode?: string;
 }
 
 interface RawShippingAddress {
@@ -108,6 +109,7 @@ export default function OrderListPage() {
           ...order,
           trackingNumber: shipment?.trackingNumber,
           labelUrl: shipment?.labelUrl,
+          barcode: shipment?.barcode
         };
       });
 
@@ -157,7 +159,12 @@ export default function OrderListPage() {
 
   const columns = [
     { title: 'Sipariş Numarası', dataIndex: 'name', key: 'name' },
-    { title: 'Müşteri', dataIndex: ['customer', 'name'], key: 'customer' },
+    { title: 'Müşteri Adı', dataIndex: ['customer', 'name'], key: 'customer' },
+    {
+      title: 'Barkod',
+      key: 'barcode',
+      render: (_: any, record: Order) => record.barcode || '-',
+    },
     {
       title: 'E-Posta',
       key: 'email',
@@ -193,7 +200,7 @@ export default function OrderListPage() {
 
   return (
     <AdminLayout>
-      <h2>Siparişler</h2>
+      <h2>Gönderiler</h2>
       <Table
         rowKey="id"
         columns={columns}
