@@ -165,7 +165,8 @@ export default function OrderListPage() {
     {
       title: 'Barkod',
       key: 'barcode',
-      render: (_: any, record: Order) => record.barcode || '-',
+      render: (_: any, record: Order) =>
+        record.barcode ? record.barcode : 'Barkod henüz oluşturulmadı',      
     },
     {
       title: 'E-Posta',
