@@ -17,6 +17,7 @@ interface Order {
   id: string;
   name: string;
   total_price: string;
+  financial_status?: string; // Shopify payment status
   line_items?: LineItem[];
   customer: {
     name: string;
@@ -72,6 +73,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [courier, setCourier] = useState('MNG');
+  const [paymentType, setPaymentType] = useState<number>(1); // 🟢 Gönderici Ödemeli varsayılan
   const [trackingNumber, setTrackingNumber] = useState('');
   const [labelUrl, setLabelUrl] = useState('');
   const [barcode, setBarcode] = useState('');
@@ -99,6 +101,16 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
     const foundDistrict = districts.find(d => normalizeCityName(d.name) === normalizedDistrict);
     if (foundDistrict) setSelectedDistrict(foundDistrict.name);
   }, [districts]);
+
+  // Shopify’dan ödeme tipi geldi mi kontrol et, gelmediyse kullanıcı seçim yapsın
+  useEffect(() => {
+    if (order.financial_status) {
+      const status = order.financial_status.toLowerCase();
+      if (status === 'paid') setPaymentType(1); // Gönderici Ödemeli
+      else if (status === 'pending') setPaymentType(2); // Alıcı Ödemeli
+      else setPaymentType(1);
+    }
+  }, [order]);
 
   const fetchCities = async () => {
     try {
@@ -148,6 +160,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
     if (!courier) return message.warning('Kargo firması seçin.');
     if (!selectedCity) return message.warning('Lütfen şehir seçin.');
     if (!selectedDistrict) return message.warning('Lütfen ilçe seçin.');
+    if (!paymentType) return message.warning('Lütfen ödeme türünü seçin.');
 
     setLoading(true);
     try {
@@ -157,6 +170,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
       const orderData = {
         referenceId: order.id,
         content: `Sipariş: ${order.name}`,
+        paymentType, // 🟢 Shopify gelmese bile kullanıcı seçimi gönderiliyor
         recipient: {
           customerId: 0,
           refCustomerId: '',
@@ -176,8 +190,6 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
         })) || [{ desi: 2, kg: 1, content: 'Varsayılan Paket' }],
       };
 
-      // ------------------ Shipment + Barcode ------------------
-      // Backend bu fonksiyonu çağıracak ve shipment + barcode üretecek
       const data: ShipmentResponse = await createMNGShipment({
         orderId: order.id,
         courier,
@@ -243,6 +255,18 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
               {d.name}
             </Option>
           ))}
+        </Select>
+
+        {/* 🟢 Ödeme Türü Seçimi */}
+        <Select
+          style={{ width: 180 }}
+          placeholder="Ödeme Türü"
+          value={paymentType}
+          onChange={setPaymentType}
+        >
+          <Option value={1}>Gönderici Ödemeli</Option>
+          <Option value={2}>Alıcı Ödemeli</Option>
+          <Option value={3}>Kapıda Ödeme</Option>
         </Select>
 
         <Button type="primary" onClick={handleCreateShipment} loading={loading}>

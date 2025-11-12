@@ -23,7 +23,6 @@ export default function IndividualShipment() {
       const res = await getCities();
       setCities(res.data || []);
     } catch (err) {
-      console.error(err);
       message.error('Şehirler alınamadı.');
     }
   };
@@ -34,7 +33,6 @@ export default function IndividualShipment() {
       const res = await getDistrictsByCityCode(cityCode);
       setDistricts(res.data || []);
     } catch (err) {
-      console.error(err);
       setDistricts([]);
       message.error('İlçeler alınamadı.');
     } finally {
@@ -48,10 +46,10 @@ export default function IndividualShipment() {
     if (city) fetchDistricts(city.code);
   };
 
-  // 🟢 Yeni: BRYSL0001 gibi referenceId oluşturma
+  // 🟢 BRYSL0001 gibi referenceId oluşturma
   const generateReferenceId = () => {
-    const randomNum = Math.floor(1000 + Math.random() * 9000); // 4 basamaklı
-    return `BRYSL${randomNum}`;
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    return `#BRYSL${randomNum}`;
   };
 
   const handleSubmit = async (values: any) => {
@@ -62,6 +60,7 @@ export default function IndividualShipment() {
       const orderData = {
         referenceId,
         content: `Bireysel Gönderim: ${values.fullName}`,
+        paymentType: values.paymentType, // 🟢 Formdan gelen ödeme tipi
         pieces: [
           { barcode: `${Date.now()}_1`, desi: 1, kg: 1, content: 'Parça 1' }
         ],
@@ -76,20 +75,14 @@ export default function IndividualShipment() {
         }
       };
 
-      // createIndividualMNGShipment artık ShipmentResponse döndürüyor varsayımıyla:
       const res = await createIndividualMNGShipment(orderData, 'MNG');
 
-      // Doğru kullanım: res.trackingNumber / res.labelUrl (res.data değil)
       setTrackingNumber(res.trackingNumber || '');
       setLabelUrl(res.labelUrl || '');
 
-      // Formu temizle
-      form.resetFields();
-
       message.success(`Bireysel gönderim oluşturuldu! Sipariş No: ${referenceId}`);
     } catch (err: any) {
-      console.error(err);
-      message.error('Kargo oluşturulamadı: ' + (err?.message || 'Bilinmeyen hata'));
+      message.error('Kargo oluşturulamadı: ' + (err.message || 'Bilinmeyen hata'));
     } finally {
       setLoading(false);
     }
@@ -125,6 +118,15 @@ export default function IndividualShipment() {
         <Input.TextArea placeholder="Adres" rows={3} />
       </Form.Item>
 
+      {/* 🟢 Yeni eklenen ödeme türü alanı */}
+      <Form.Item name="paymentType" label="Ödeme Türü" rules={[{ required: true }]}>
+        <Select placeholder="Ödeme türü seçin">
+          <Option value={1}>Gönderici Ödemeli</Option>
+          <Option value={2}>Alıcı Ödemeli</Option>
+          <Option value={3}>Kapıda Ödeme</Option>
+        </Select>
+      </Form.Item>
+
       <Form.Item>
         <Button type="primary" htmlType="submit" loading={loading}>
           Kargo Oluştur
@@ -133,7 +135,7 @@ export default function IndividualShipment() {
 
       {trackingNumber && (
         <Paragraph>
-          <strong>Takip No:</strong> {trackingNumber} <br/>
+          <strong>Takip No:</strong> {trackingNumber} <br />
           {labelUrl && <Link href={labelUrl} target="_blank">PDF Label</Link>}
         </Paragraph>
       )}
