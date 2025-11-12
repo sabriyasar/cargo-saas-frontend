@@ -162,15 +162,20 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
       const city = cities.find(c => c.name === selectedCity);
       const district = districts.find(d => d.name === selectedDistrict);
 
-      const recipientPayload: any = {
-        customerId: '',
+      const recipientPayload = {
+        customerId: 0, // boş veya 0
         refCustomerId: '',
-        cityCode: city?.code || 0,
-        districtCode: district?.code || 0,
+        cityCode: city?.code || '',        // mutlaka doldur
+        districtCode: district?.code || '', // mutlaka doldur
         cityName: selectedCity,
         districtName: selectedDistrict,
-        address: order.customer.address || '',
+        address: order.customer.address || 'Adres girilmedi',
+        bussinessPhoneNumber: '', // opsiyonel
         email: order.customer.email || '',
+        taxOffice: '',
+        taxNumber: '',
+        fullName: order.customer.name || '', // doluysa ekle
+        homePhoneNumber: '',
         mobilePhoneNumber: order.customer.phone || '',
       };
 
@@ -180,15 +185,32 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
       }
 
       const orderData = {
-        referenceId: order.id,
-        content: `Sipariş: ${order.name}`,
-        paymentType,
-        recipient: recipientPayload,
-        pieces: order.line_items?.map((item: LineItem, idx: number) => ({
+        order: {
+          referenceId: order.id,
+          barcode: order.id,
+          billOfLandingId: 'İrsaliye 1',
+          isCOD: paymentType === 3 ? 1 : 0,
+          codAmount: paymentType === 3 ? order.line_items?.reduce((acc, item) => acc + (item.quantity || 1), 0) : 0,
+          shipmentServiceType: 1,
+          packagingType: 1,
+          content: `Sipariş: ${order.name}`,
+          description: `Sipariş: ${order.name}`,
+          paymentType,
+          deliveryType: 1,
+          smsPreference1: 1,
+          smsPreference2: 0,
+          smsPreference3: 0,
+          marketPlaceShortCode: '',
+          marketPlaceSaleCode: '',
+          pudoId: '',
+        },
+        orderPieceList: order.line_items?.map((item, idx) => ({
+          barcode: `${order.id}_PARCA${idx + 1}`,
           desi: 2,
           kg: item.quantity || 1,
           content: item.title || item.name || 'Ürün',
-        })) || [{ desi: 2, kg: 1, content: 'Varsayılan Paket' }],
+        })) || [{ barcode: `${order.id}_PARCA1`, desi: 2, kg: 1, content: 'Varsayılan Paket' }],
+        recipient: recipientPayload,
       };
 
       const data: ShipmentResponse = await createMNGShipment({
