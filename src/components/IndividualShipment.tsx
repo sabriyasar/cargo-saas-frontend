@@ -23,6 +23,7 @@ export default function IndividualShipment() {
       const res = await getCities();
       setCities(res.data || []);
     } catch (err) {
+      console.error(err);
       message.error('Şehirler alınamadı.');
     }
   };
@@ -33,6 +34,7 @@ export default function IndividualShipment() {
       const res = await getDistrictsByCityCode(cityCode);
       setDistricts(res.data || []);
     } catch (err) {
+      console.error(err);
       setDistricts([]);
       message.error('İlçeler alınamadı.');
     } finally {
@@ -49,7 +51,7 @@ export default function IndividualShipment() {
   // 🟢 Yeni: BRYSL0001 gibi referenceId oluşturma
   const generateReferenceId = () => {
     const randomNum = Math.floor(1000 + Math.random() * 9000); // 4 basamaklı
-    return `#BRYSL${randomNum}`;
+    return `BRYSL${randomNum}`;
   };
 
   const handleSubmit = async (values: any) => {
@@ -74,16 +76,20 @@ export default function IndividualShipment() {
         }
       };
 
+      // createIndividualMNGShipment artık ShipmentResponse döndürüyor varsayımıyla:
       const res = await createIndividualMNGShipment(orderData, 'MNG');
 
-      setTrackingNumber(res.data?.trackingNumber || '');
-      setLabelUrl(res.data?.labelUrl || '');
+      // Doğru kullanım: res.trackingNumber / res.labelUrl (res.data değil)
+      setTrackingNumber(res.trackingNumber || '');
+      setLabelUrl(res.labelUrl || '');
 
-      // 🟢 Orders listesine ekleme için toast ve opsiyonel state yönetimi yapılabilir
+      // Formu temizle
+      form.resetFields();
+
       message.success(`Bireysel gönderim oluşturuldu! Sipariş No: ${referenceId}`);
-
     } catch (err: any) {
-      message.error('Kargo oluşturulamadı: ' + (err.message || 'Bilinmeyen hata'));
+      console.error(err);
+      message.error('Kargo oluşturulamadı: ' + (err?.message || 'Bilinmeyen hata'));
     } finally {
       setLoading(false);
     }
