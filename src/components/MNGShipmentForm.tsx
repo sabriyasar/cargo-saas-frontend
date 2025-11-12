@@ -73,7 +73,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [courier, setCourier] = useState('MNG');
-  const [paymentType, setPaymentType] = useState<number>(1); // 🟢 Gönderici Ödemeli varsayılan
+  const [paymentType, setPaymentType] = useState<number>(1);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [labelUrl, setLabelUrl] = useState('');
   const [barcode, setBarcode] = useState('');
@@ -81,9 +81,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
 
   // ------------------ Şehir ve İlçe Yükleme ------------------
 
-  useEffect(() => {
-    fetchCities();
-  }, []);
+  useEffect(() => { fetchCities(); }, []);
 
   useEffect(() => {
     if (!cities.length) return;
@@ -102,12 +100,11 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
     if (foundDistrict) setSelectedDistrict(foundDistrict.name);
   }, [districts]);
 
-  // Shopify’dan ödeme tipi geldi mi kontrol et, gelmediyse kullanıcı seçim yapsın
   useEffect(() => {
     if (order.financial_status) {
       const status = order.financial_status.toLowerCase();
-      if (status === 'paid') setPaymentType(1); // Gönderici Ödemeli
-      else if (status === 'pending') setPaymentType(2); // Alıcı Ödemeli
+      if (status === 'paid') setPaymentType(1);
+      else if (status === 'pending') setPaymentType(2);
       else setPaymentType(1);
     }
   }, [order]);
@@ -154,9 +151,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
   // ------------------ Shipment + Barcode Oluşturma ------------------
 
   const handleCreateShipment = async () => {
-    if (!order.customer.name?.trim()) {
-      return message.warning('Müşteri adı soyadı boş. Lütfen önce doldurun.');
-    }
+    if (!order.customer.name?.trim()) return message.warning('Müşteri adı soyadı boş. Lütfen önce doldurun.');
     if (!courier) return message.warning('Kargo firması seçin.');
     if (!selectedCity) return message.warning('Lütfen şehir seçin.');
     if (!selectedDistrict) return message.warning('Lütfen ilçe seçin.');
@@ -167,22 +162,28 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
       const city = cities.find(c => c.name === selectedCity);
       const district = districts.find(d => d.name === selectedDistrict);
 
+      const recipientPayload: any = {
+        customerId: 0,
+        refCustomerId: '',
+        cityCode: city?.code || 0,
+        districtCode: district?.code || 0,
+        cityName: selectedCity,
+        districtName: selectedDistrict,
+        address: order.customer.address || '',
+        email: order.customer.email || '',
+        mobilePhoneNumber: order.customer.phone || '',
+      };
+
+      // customerId > 0 ise fullName ekle, 0 veya null ise ekleme
+      if (recipientPayload.customerId && recipientPayload.customerId > 0) {
+        recipientPayload.fullName = order.customer.name;
+      }
+
       const orderData = {
         referenceId: order.id,
         content: `Sipariş: ${order.name}`,
-        paymentType, // 🟢 Shopify gelmese bile kullanıcı seçimi gönderiliyor
-        recipient: {
-          customerId: 0,
-          refCustomerId: '',
-          cityCode: city?.code || 0,
-          districtCode: district?.code || 0,
-          cityName: selectedCity,
-          districtName: selectedDistrict,
-          address: order.customer.address || '',
-          email: order.customer.email || '',
-          fullName: order.customer.name,
-          mobilePhoneNumber: order.customer.phone || '',
-        },
+        paymentType,
+        recipient: recipientPayload,
         pieces: order.line_items?.map((item: LineItem, idx: number) => ({
           desi: 2,
           kg: item.quantity || 1,
@@ -217,80 +218,32 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', gap: 8 }}>
-        <Select
-          style={{ width: 150 }}
-          placeholder="Kargo Firması"
-          onChange={setCourier}
-          value={courier || undefined}
-          status={!courier ? 'error' : undefined}
-        >
+        <Select style={{ width: 150 }} placeholder="Kargo Firması" onChange={setCourier} value={courier || undefined} status={!courier ? 'error' : undefined}>
           <Option value="MNG">MNG</Option>
         </Select>
 
-        <Select
-          style={{ width: 150 }}
-          placeholder="Şehir"
-          value={selectedCity || undefined}
-          onChange={handleCityChange}
-          status={!selectedCity ? 'error' : undefined}
-        >
-          {cities.map((c: City) => (
-            <Option key={c.code} value={c.name}>
-              {c.name}
-            </Option>
-          ))}
+        <Select style={{ width: 150 }} placeholder="Şehir" value={selectedCity || undefined} onChange={handleCityChange} status={!selectedCity ? 'error' : undefined}>
+          {cities.map((c: City) => <Option key={c.code} value={c.name}>{c.name}</Option>)}
         </Select>
 
-        <Select
-          style={{ width: 150 }}
-          placeholder="İlçe"
-          value={selectedDistrict || undefined}
-          onChange={setSelectedDistrict}
-          loading={loadingDistricts}
-          disabled={!selectedCity}
-          status={!selectedDistrict ? 'error' : undefined}
-        >
-          {districts.map((d: District) => (
-            <Option key={d.code} value={d.name}>
-              {d.name}
-            </Option>
-          ))}
+        <Select style={{ width: 150 }} placeholder="İlçe" value={selectedDistrict || undefined} onChange={setSelectedDistrict} loading={loadingDistricts} disabled={!selectedCity} status={!selectedDistrict ? 'error' : undefined}>
+          {districts.map((d: District) => <Option key={d.code} value={d.name}>{d.name}</Option>)}
         </Select>
 
-        {/* 🟢 Ödeme Türü Seçimi */}
-        <Select
-          style={{ width: 180 }}
-          placeholder="Ödeme Türü"
-          value={paymentType}
-          onChange={setPaymentType}
-        >
+        <Select style={{ width: 180 }} placeholder="Ödeme Türü" value={paymentType} onChange={setPaymentType}>
           <Option value={1}>Gönderici Ödemeli</Option>
           <Option value={2}>Alıcı Ödemeli</Option>
           <Option value={3}>Kapıda Ödeme</Option>
         </Select>
 
-        <Button type="primary" onClick={handleCreateShipment} loading={loading}>
-          Gönder
-        </Button>
+        <Button type="primary" onClick={handleCreateShipment} loading={loading}>Gönder</Button>
       </div>
 
       {(trackingNumber || barcode) && (
         <Paragraph>
-          {trackingNumber && (
-            <>
-              <strong>Takip No:</strong> {trackingNumber} <br />
-            </>
-          )}
-          {labelUrl && (
-            <Link href={labelUrl} target="_blank">
-              PDF Label
-            </Link>
-          )}
-          {barcode && (
-            <div>
-              <strong>Barkod:</strong> {barcode}
-            </div>
-          )}
+          {trackingNumber && <><strong>Takip No:</strong> {trackingNumber} <br /></>}
+          {labelUrl && <Link href={labelUrl} target="_blank">PDF Label</Link>}
+          {barcode && <div><strong>Barkod:</strong> {barcode}</div>}
         </Paragraph>
       )}
     </div>
