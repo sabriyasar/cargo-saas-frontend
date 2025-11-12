@@ -5,10 +5,19 @@ import { createMNGShipment, getCities, getDistrictsByCityCode } from '@/services
 const { Option } = Select;
 const { Paragraph, Link } = Typography;
 
+// ------------------ Tip Tanımlamaları ------------------
+
+interface LineItem {
+  title: string;
+  name?: string;
+  quantity?: number;
+}
+
 interface Order {
   id: string;
   name: string;
   total_price: string;
+  line_items?: LineItem[];
   customer: {
     name: string;
     email?: string;
@@ -22,18 +31,31 @@ interface Order {
 interface Props {
   order: Order;
   isReturn?: boolean;
-  onShipmentCreated?: (orderId: string, trackingNumber: string, labelUrl: string) => void;
+  onShipmentCreated?: (orderId: string, trackingNumber: string, labelUrl: string, barcode?: string) => void;
 }
 
-// 🔹 Karakter normalize eder ve Türkçe büyük harfe çevirir
-const normalizeCityName = (str: string = '') =>
-  str
-    .trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleUpperCase('tr-TR');
+interface City {
+  code: string;
+  name: string;
+}
 
-// 🔹 Görsel isim formatı (İlk harf büyük, diğerleri küçük) — Türkçe uyumlu
+interface District {
+  code: string;
+  name: string;
+}
+
+interface ShipmentResponse {
+  trackingNumber: string;
+  labelUrl: string;
+  barcode: string;
+  raw?: any;
+}
+
+// ------------------ Yardımcı Fonksiyonlar ------------------
+
+const normalizeCityName = (str: string = '') =>
+  str.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleUpperCase('tr-TR');
+
 const formatDisplayName = (name: string = '') =>
   name
     .toLocaleLowerCase('tr-TR')
@@ -41,25 +63,28 @@ const formatDisplayName = (name: string = '') =>
     .map(word => word.charAt(0).toLocaleUpperCase('tr-TR') + word.slice(1))
     .join(' ');
 
+// ------------------ Component ------------------
+
 export default function MNGShipmentForm({ order, isReturn = false, onShipmentCreated }: Props) {
   const [loading, setLoading] = useState(false);
-  const [cities, setCities] = useState<{ code: string; name: string }[]>([]);
-  const [districts, setDistricts] = useState<{ code: string; name: string }[]>([]);
-  const [selectedCity, setSelectedCity] = useState<string>('');
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
-  const [courier, setCourier] = useState('');
+  const [cities, setCities] = useState<City[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [courier, setCourier] = useState('MNG');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [labelUrl, setLabelUrl] = useState('');
+  const [barcode, setBarcode] = useState('');
   const [loadingDistricts, setLoadingDistricts] = useState(false);
 
-  // 🔹 Şehirleri yükle
+  // ------------------ Şehir ve İlçe Yükleme ------------------
+
   useEffect(() => {
     fetchCities();
   }, []);
 
-  // 🔹 Shopify adresinden city ve district match et
   useEffect(() => {
-    if (cities.length === 0) return;
+    if (!cities.length) return;
     const normalizedCustomerCity = normalizeCityName(order.customer.cityName);
     const foundCity = cities.find(c => normalizeCityName(c.name) === normalizedCustomerCity);
     if (foundCity) {
@@ -68,9 +93,8 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
     }
   }, [cities]);
 
-  // 🔹 İlçeyi eşleştir
   useEffect(() => {
-    if (districts.length === 0 || !order.customer.districtName) return;
+    if (!districts.length || !order.customer.districtName) return;
     const normalizedDistrict = normalizeCityName(order.customer.districtName);
     const foundDistrict = districts.find(d => normalizeCityName(d.name) === normalizedDistrict);
     if (foundDistrict) setSelectedDistrict(foundDistrict.name);
@@ -79,7 +103,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
   const fetchCities = async () => {
     try {
       const res = await getCities();
-      const cityList = (res.data?.data || res.data || []).map((c: any) => ({
+      const cityList: City[] = (res.data?.data || res.data || []).map((c: any) => ({
         ...c,
         name: formatDisplayName(c.name),
       }));
@@ -94,7 +118,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
     setLoadingDistricts(true);
     try {
       const res = await getDistrictsByCityCode(cityCode);
-      const districtList = (res.data?.data || res.data || []).map((d: any) => ({
+      const districtList: District[] = (res.data?.data || res.data || []).map((d: any) => ({
         ...d,
         name: formatDisplayName(d.name),
       }));
@@ -115,8 +139,10 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
     if (city) fetchDistricts(city.code);
   };
 
+  // ------------------ Shipment + Barcode Oluşturma ------------------
+
   const handleCreateShipment = async () => {
-    if (!order.customer.name || order.customer.name.trim() === '') {
+    if (!order.customer.name?.trim()) {
       return message.warning('Müşteri adı soyadı boş. Lütfen önce doldurun.');
     }
     if (!courier) return message.warning('Kargo firması seçin.');
@@ -131,7 +157,6 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
       const orderData = {
         referenceId: order.id,
         content: `Sipariş: ${order.name}`,
-        pieces: [{ barcode: `${order.id}_1`, desi: 2, kg: 1, content: 'Parça 1' }],
         recipient: {
           customerId: 0,
           refCustomerId: '',
@@ -144,20 +169,29 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
           fullName: order.customer.name,
           mobilePhoneNumber: order.customer.phone || '',
         },
+        pieces: order.line_items?.map((item: LineItem, idx: number) => ({
+          desi: 2,
+          kg: item.quantity || 1,
+          content: item.title || item.name || 'Ürün',
+        })) || [{ desi: 2, kg: 1, content: 'Varsayılan Paket' }],
       };
 
-      const res = await createMNGShipment({
+      // ------------------ Shipment + Barcode ------------------
+      // Backend bu fonksiyonu çağıracak ve shipment + barcode üretecek
+      const data: ShipmentResponse = await createMNGShipment({
         orderId: order.id,
         courier,
         isReturn,
         orderData,
       });
 
-      setTrackingNumber(res.data.trackingNumber || '');
-      setLabelUrl(res.data.labelUrl || '');
-      onShipmentCreated?.(order.id, res.data.trackingNumber, res.data.labelUrl || '');
+      setTrackingNumber(data.trackingNumber || '');
+      setLabelUrl(data.labelUrl || '');
+      setBarcode(data.barcode || '');
 
-      message.success(`Kargo oluşturuldu. Takip No: ${res.data.trackingNumber}`);
+      onShipmentCreated?.(order.id, data.trackingNumber, data.labelUrl || '', data.barcode);
+
+      message.success(`Kargo oluşturuldu. Takip No: ${data.trackingNumber || 'Oluşturulamadı'}`);
     } catch (err: unknown) {
       console.error(err);
       message.error('Kargo oluşturulamadı.');
@@ -165,6 +199,8 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
       setLoading(false);
     }
   };
+
+  // ------------------ Render ------------------
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -186,7 +222,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
           onChange={handleCityChange}
           status={!selectedCity ? 'error' : undefined}
         >
-          {cities.map(c => (
+          {cities.map((c: City) => (
             <Option key={c.code} value={c.name}>
               {c.name}
             </Option>
@@ -202,7 +238,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
           disabled={!selectedCity}
           status={!selectedDistrict ? 'error' : undefined}
         >
-          {districts.map(d => (
+          {districts.map((d: District) => (
             <Option key={d.code} value={d.name}>
               {d.name}
             </Option>
@@ -214,13 +250,22 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
         </Button>
       </div>
 
-      {trackingNumber && (
+      {(trackingNumber || barcode) && (
         <Paragraph>
-          <strong>Takip No:</strong> {trackingNumber} <br />
+          {trackingNumber && (
+            <>
+              <strong>Takip No:</strong> {trackingNumber} <br />
+            </>
+          )}
           {labelUrl && (
             <Link href={labelUrl} target="_blank">
               PDF Label
             </Link>
+          )}
+          {barcode && (
+            <div>
+              <strong>Barkod:</strong> {barcode}
+            </div>
           )}
         </Paragraph>
       )}

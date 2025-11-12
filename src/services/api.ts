@@ -4,10 +4,19 @@ import axios from "axios";
 const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3003";
 
 /* ================================
+   🔹 TYPE DEFINITIONS
+================================ */
+export interface ShipmentResponse {
+  trackingNumber: string;
+  labelUrl: string;
+  barcode: string;
+  raw?: any;
+}
+
+/* ================================
    🔹 SHOPIFY SERVİSLERİ
 ================================ */
 export const getShopifyOrders = async () => {
-  // Artık shop parametresi gerekmiyor
   return axios.get(`${API_URL}/shopify/orders?status=any`);
 };
 
@@ -23,18 +32,32 @@ export const createMNGShipment = async (data: {
   courier: string;
   isReturn?: boolean;
   orderData: any;
-}) => {
-  return axios.post(`${API_URL}/shipments`, data);
+}): Promise<ShipmentResponse> => {
+  const res = await axios.post(`${API_URL}/shipments`, data);
+  const d = res.data;
+  return {
+    trackingNumber: d.trackingNumber || '',
+    labelUrl: d.labelUrl || '',
+    barcode: d.barcode || '',
+    raw: d,
+  };
 };
 
-export const createIndividualMNGShipment = async (orderData: any, courier: string) => {
+export const createIndividualMNGShipment = async (orderData: any, courier: string): Promise<ShipmentResponse> => {
   const fakeOrderId = Date.now().toString();
-  return axios.post(`${API_URL}/shipments`, {
+  const res = await axios.post(`${API_URL}/shipments`, {
     orderId: fakeOrderId,
     courier,
     isReturn: false,
     orderData,
   });
+  const d = res.data;
+  return {
+    trackingNumber: d.trackingNumber || '',
+    labelUrl: d.labelUrl || '',
+    barcode: d.barcode || '',
+    raw: d,
+  };
 };
 
 export const getShipmentsByOrderIds = async (orderIds: string) => {
