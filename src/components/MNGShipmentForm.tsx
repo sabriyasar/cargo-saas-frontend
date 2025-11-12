@@ -163,7 +163,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
       const district = districts.find(d => d.name === selectedDistrict);
 
       const recipientPayload: any = {
-        customerId: 0,
+        customerId: '',
         refCustomerId: '',
         cityCode: city?.code || 0,
         districtCode: district?.code || 0,
