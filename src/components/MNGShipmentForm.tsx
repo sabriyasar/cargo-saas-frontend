@@ -205,8 +205,8 @@ export default function MNGShipmentForm({
 
       const orderData = {
         order: {
-          referenceId: order.id.toString(),  // string tip
-          barcode: order.id.toString(),      // string tip
+          referenceId: order.id.toString(),    // SIPARIS34562
+          barcode: order.id.toString(),        // SIPARIS34567
           billOfLandingId: 'İrsaliye 1',
           isCOD: paymentType === 3 ? 1 : 0,
           codAmount: paymentType === 3 ? Number(order.total_price) || 0 : 0,
@@ -238,8 +238,8 @@ export default function MNGShipmentForm({
             }
           ],
         recipient: {
-          customerId: order.customer.customerId ? order.customer.customerId : '',
-          refCustomerId: '',
+          customerId: order.customer.customerId ? order.customer.customerId : "",
+          refCustomerId: "",
           cityCode: Number(city?.code) || 0,
           districtCode: Number(district?.code) || 0,
           cityName: selectedCity.toUpperCase(),
@@ -249,11 +249,11 @@ export default function MNGShipmentForm({
           email: order.customer.email || '',
           taxOffice: '',
           taxNumber: '',
+          fullName: order.customer.customerId ? "" : order.customer.name || "",
           homePhoneNumber: '',
-          mobilePhoneNumber: normalizePhone(order.customer.phone || ''),
-          fullName: order.customer.customerId ? '' : order.customer.name || ''
+          mobilePhoneNumber: normalizePhone(order.customer.phone || '')
         }
-      };      
+      };        
 // ---------------- LOG EKLENDİ ----------------
 console.log('📦 MNG Shipment Payload:', JSON.stringify(orderData, null, 2));
       const data: ShipmentResponse = await createMNGShipment({
