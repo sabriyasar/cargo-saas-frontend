@@ -184,8 +184,8 @@ export default function MNGShipmentForm({
       const district = districts.find(d => d.name === selectedDistrict);
 
       const recipientPayload: any = {
-        customerId: 0, // yeni müşteri, numeric
-        refCustomerId: '',
+        customerId: 0, // yeni müşteri için numeric 0
+        // refCustomerId tamamen kaldırıldı
         cityCode: Number(city?.code) || 0,
         districtCode: Number(district?.code) || 0,
         cityName: selectedCity,
@@ -197,7 +197,8 @@ export default function MNGShipmentForm({
         taxNumber: '',
         homePhoneNumber: '',
         mobilePhoneNumber: normalizePhone(order.customer.phone || ''),
-      };
+        fullName: order.customer.name || '', // yeni müşteri için fullName
+      };      
       
       // MNG kuralı: sadece yeni müşteri ise fullName gönder
       if (recipientPayload.customerId === 0) {
