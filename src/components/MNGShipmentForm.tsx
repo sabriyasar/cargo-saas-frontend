@@ -20,7 +20,6 @@ interface Order {
   financial_status?: string;
   line_items?: LineItem[];
   customer: {
-    id?: number; // <--- MNG için eklendi
     name: string;
     email?: string;
     phone?: string;
@@ -94,16 +93,12 @@ export default function MNGShipmentForm({
 
   // ------------------ Şehir ve İlçe Yükleme ------------------
 
-  useEffect(() => {
-    fetchCities();
-  }, []);
+  useEffect(() => { fetchCities(); }, []);
 
   useEffect(() => {
     if (!cities.length) return;
     const normalizedCustomerCity = normalizeCityName(order.customer.cityName);
-    const foundCity = cities.find(
-      c => normalizeCityName(c.name) === normalizedCustomerCity
-    );
+    const foundCity = cities.find(c => normalizeCityName(c.name) === normalizedCustomerCity);
     if (foundCity) {
       setSelectedCity(foundCity.name);
       fetchDistricts(foundCity.code);
@@ -113,9 +108,7 @@ export default function MNGShipmentForm({
   useEffect(() => {
     if (!districts.length || !order.customer.districtName) return;
     const normalizedDistrict = normalizeCityName(order.customer.districtName);
-    const foundDistrict = districts.find(
-      d => normalizeCityName(d.name) === normalizedDistrict
-    );
+    const foundDistrict = districts.find(d => normalizeCityName(d.name) === normalizedDistrict);
     if (foundDistrict) setSelectedDistrict(foundDistrict.name);
   }, [districts]);
 
@@ -146,12 +139,10 @@ export default function MNGShipmentForm({
     setLoadingDistricts(true);
     try {
       const res = await getDistrictsByCityCode(cityCode);
-      const districtList: District[] = (res.data?.data || res.data || []).map(
-        (d: any) => ({
-          ...d,
-          name: formatDisplayName(d.name),
-        })
-      );
+      const districtList: District[] = (res.data?.data || res.data || []).map((d: any) => ({
+        ...d,
+        name: formatDisplayName(d.name),
+      }));
       setDistricts(districtList);
     } catch (err) {
       console.error('İlçeler alınamadı', err);
@@ -184,26 +175,22 @@ export default function MNGShipmentForm({
       const city = cities.find(c => c.name === selectedCity);
       const district = districts.find(d => d.name === selectedDistrict);
 
-      // ------------------ Recipient Payload ------------------
       const recipientPayload: any = {
-        customerId: order.customer.id || 0, // varsa mevcut müşteri ID, yoksa 0
+        customerId: "", // yeni müşteri için boş string
+        refCustomerId: "",
         cityCode: Number(city?.code) || 0,
         districtCode: Number(district?.code) || 0,
-        cityName: selectedCity,
-        districtName: selectedDistrict,
+        cityName: selectedCity.toUpperCase(),
+        districtName: selectedDistrict.toUpperCase(),
         address: order.customer.address || 'Adres girilmedi',
         bussinessPhoneNumber: '',
         email: order.customer.email || '',
         taxOffice: '',
         taxNumber: '',
+        fullName: order.customer.name || '',
         homePhoneNumber: '',
         mobilePhoneNumber: normalizePhone(order.customer.phone || ''),
       };
-
-      // MNG kuralı: customerId 0 ise fullName gönder, değilse kaldır
-      if (!recipientPayload.customerId) {
-        recipientPayload.fullName = order.customer.name || '';
-      }
 
       const orderData = {
         order: {
@@ -253,12 +240,7 @@ export default function MNGShipmentForm({
       setLabelUrl(data.labelUrl || '');
       setBarcode(data.barcode || '');
 
-      onShipmentCreated?.(
-        order.id,
-        data.trackingNumber,
-        data.labelUrl || '',
-        data.barcode
-      );
+      onShipmentCreated?.(order.id, data.trackingNumber, data.labelUrl || '', data.barcode);
 
       message.success(
         `Kargo oluşturuldu. Takip No: ${data.trackingNumber || 'Oluşturulamadı'}`
@@ -294,9 +276,7 @@ export default function MNGShipmentForm({
           status={!selectedCity ? 'error' : undefined}
         >
           {cities.map((c: City) => (
-            <Option key={c.code} value={c.name}>
-              {c.name}
-            </Option>
+            <Option key={c.code} value={c.name}>{c.name}</Option>
           ))}
         </Select>
 
@@ -310,9 +290,7 @@ export default function MNGShipmentForm({
           status={!selectedDistrict ? 'error' : undefined}
         >
           {districts.map((d: District) => (
-            <Option key={d.code} value={d.name}>
-              {d.name}
-            </Option>
+            <Option key={d.code} value={d.name}>{d.name}</Option>
           ))}
         </Select>
 
@@ -344,9 +322,7 @@ export default function MNGShipmentForm({
             </>
           )}
           {labelUrl && (
-            <Link href={labelUrl} target="_blank">
-              PDF Label
-            </Link>
+            <Link href={labelUrl} target="_blank">PDF Label</Link>
           )}
           {barcode && (
             <div>
