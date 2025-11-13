@@ -205,8 +205,8 @@ export default function MNGShipmentForm({
 
       const orderData = {
         order: {
-          referenceId: order.id,
-          barcode: order.id,
+          referenceId: order.id.toString(),  // string tip
+          barcode: order.id.toString(),      // string tip
           billOfLandingId: 'İrsaliye 1',
           isCOD: paymentType === 3 ? 1 : 0,
           codAmount: paymentType === 3 ? Number(order.total_price) || 0 : 0,
@@ -221,24 +221,39 @@ export default function MNGShipmentForm({
           smsPreference3: 0,
           marketPlaceShortCode: '',
           marketPlaceSaleCode: '',
-          pudoId: '',
+          pudoId: ''
         },
         orderPieceList:
           order.line_items?.map((item, idx) => ({
             barcode: `${order.id}_PARCA${idx + 1}`,
             desi: 2,
             kg: item.quantity || 1,
-            content: item.title || item.name || 'Ürün',
+            content: item.title || item.name || 'Ürün'
           })) || [
             {
               barcode: `${order.id}_PARCA1`,
               desi: 2,
               kg: 1,
-              content: 'Varsayılan Paket',
-            },
+              content: 'Varsayılan Paket'
+            }
           ],
-        recipient: recipientPayload,
-      };
+        recipient: {
+          customerId: order.customer.customerId ? order.customer.customerId : '',
+          refCustomerId: '',
+          cityCode: Number(city?.code) || 0,
+          districtCode: Number(district?.code) || 0,
+          cityName: selectedCity.toUpperCase(),
+          districtName: selectedDistrict.toUpperCase(),
+          address: order.customer.address || 'Adres girilmedi',
+          bussinessPhoneNumber: '',
+          email: order.customer.email || '',
+          taxOffice: '',
+          taxNumber: '',
+          homePhoneNumber: '',
+          mobilePhoneNumber: normalizePhone(order.customer.phone || ''),
+          fullName: order.customer.customerId ? '' : order.customer.name || ''
+        }
+      };      
 // ---------------- LOG EKLENDİ ----------------
 console.log('📦 MNG Shipment Payload:', JSON.stringify(orderData, null, 2));
       const data: ShipmentResponse = await createMNGShipment({
