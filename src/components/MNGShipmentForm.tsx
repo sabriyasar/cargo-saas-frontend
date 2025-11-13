@@ -184,7 +184,7 @@ export default function MNGShipmentForm({
       const district = districts.find(d => d.name === selectedDistrict);
 
       const recipientPayload: any = {
-        customerId: 0, // yeni müşteri oluşturulacak
+        customerId: '', // yeni müşteri oluşturulacak
         refCustomerId: '',
         cityCode: Number(city?.code) || 0,
         districtCode: Number(district?.code) || 0,
