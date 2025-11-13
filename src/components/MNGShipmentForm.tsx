@@ -20,6 +20,7 @@ interface Order {
   financial_status?: string;
   line_items?: LineItem[];
   customer: {
+    id?: number; // <--- MNG için eklendi
     name: string;
     email?: string;
     phone?: string;
@@ -183,9 +184,9 @@ export default function MNGShipmentForm({
       const city = cities.find(c => c.name === selectedCity);
       const district = districts.find(d => d.name === selectedDistrict);
 
+      // ------------------ Recipient Payload ------------------
       const recipientPayload: any = {
-        customerId: 0, // yeni müşteri için numeric 0
-        // refCustomerId tamamen kaldırıldı
+        customerId: order.customer.id || 0, // varsa mevcut müşteri ID, yoksa 0
         cityCode: Number(city?.code) || 0,
         districtCode: Number(district?.code) || 0,
         cityName: selectedCity,
@@ -197,15 +198,12 @@ export default function MNGShipmentForm({
         taxNumber: '',
         homePhoneNumber: '',
         mobilePhoneNumber: normalizePhone(order.customer.phone || ''),
-        fullName: order.customer.name || '', // yeni müşteri için fullName
-      };      
-      
-      // MNG kuralı: sadece yeni müşteri ise fullName gönder
-      if (recipientPayload.customerId === 0) {
+      };
+
+      // MNG kuralı: customerId 0 ise fullName gönder, değilse kaldır
+      if (!recipientPayload.customerId) {
         recipientPayload.fullName = order.customer.name || '';
-      } else {
-        delete recipientPayload.fullName;
-      }        
+      }
 
       const orderData = {
         order: {
@@ -242,7 +240,7 @@ export default function MNGShipmentForm({
             },
           ],
         recipient: recipientPayload,
-      };      
+      };
 
       const data: ShipmentResponse = await createMNGShipment({
         orderId: order.id,
