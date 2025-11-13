@@ -17,7 +17,7 @@ interface Order {
   id: string;
   name: string;
   total_price: string;
-  financial_status?: string; // Shopify payment status
+  financial_status?: string;
   line_items?: LineItem[];
   customer: {
     name: string;
@@ -32,7 +32,12 @@ interface Order {
 interface Props {
   order: Order;
   isReturn?: boolean;
-  onShipmentCreated?: (orderId: string, trackingNumber: string, labelUrl: string, barcode?: string) => void;
+  onShipmentCreated?: (
+    orderId: string,
+    trackingNumber: string,
+    labelUrl: string,
+    barcode?: string
+  ) => void;
 }
 
 interface City {
@@ -64,9 +69,16 @@ const formatDisplayName = (name: string = '') =>
     .map(word => word.charAt(0).toLocaleUpperCase('tr-TR') + word.slice(1))
     .join(' ');
 
+const normalizePhone = (phone = '') =>
+  phone.replace(/\D/g, '').replace(/^90/, '').replace(/^0/, '');
+
 // ------------------ Component ------------------
 
-export default function MNGShipmentForm({ order, isReturn = false, onShipmentCreated }: Props) {
+export default function MNGShipmentForm({
+  order,
+  isReturn = false,
+  onShipmentCreated,
+}: Props) {
   const [loading, setLoading] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
@@ -81,12 +93,16 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
 
   // ------------------ Şehir ve İlçe Yükleme ------------------
 
-  useEffect(() => { fetchCities(); }, []);
+  useEffect(() => {
+    fetchCities();
+  }, []);
 
   useEffect(() => {
     if (!cities.length) return;
     const normalizedCustomerCity = normalizeCityName(order.customer.cityName);
-    const foundCity = cities.find(c => normalizeCityName(c.name) === normalizedCustomerCity);
+    const foundCity = cities.find(
+      c => normalizeCityName(c.name) === normalizedCustomerCity
+    );
     if (foundCity) {
       setSelectedCity(foundCity.name);
       fetchDistricts(foundCity.code);
@@ -96,7 +112,9 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
   useEffect(() => {
     if (!districts.length || !order.customer.districtName) return;
     const normalizedDistrict = normalizeCityName(order.customer.districtName);
-    const foundDistrict = districts.find(d => normalizeCityName(d.name) === normalizedDistrict);
+    const foundDistrict = districts.find(
+      d => normalizeCityName(d.name) === normalizedDistrict
+    );
     if (foundDistrict) setSelectedDistrict(foundDistrict.name);
   }, [districts]);
 
@@ -127,10 +145,12 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
     setLoadingDistricts(true);
     try {
       const res = await getDistrictsByCityCode(cityCode);
-      const districtList: District[] = (res.data?.data || res.data || []).map((d: any) => ({
-        ...d,
-        name: formatDisplayName(d.name),
-      }));
+      const districtList: District[] = (res.data?.data || res.data || []).map(
+        (d: any) => ({
+          ...d,
+          name: formatDisplayName(d.name),
+        })
+      );
       setDistricts(districtList);
     } catch (err) {
       console.error('İlçeler alınamadı', err);
@@ -151,7 +171,8 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
   // ------------------ Shipment + Barcode Oluşturma ------------------
 
   const handleCreateShipment = async () => {
-    if (!order.customer.name?.trim()) return message.warning('Müşteri adı soyadı boş. Lütfen önce doldurun.');
+    if (!order.customer.name?.trim())
+      return message.warning('Müşteri adı soyadı boş. Lütfen önce doldurun.');
     if (!courier) return message.warning('Kargo firması seçin.');
     if (!selectedCity) return message.warning('Lütfen şehir seçin.');
     if (!selectedDistrict) return message.warning('Lütfen ilçe seçin.');
@@ -162,26 +183,31 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
       const city = cities.find(c => c.name === selectedCity);
       const district = districts.find(d => d.name === selectedDistrict);
 
-      const recipientPayload = {
-        customerId: 0, // boş veya 0
+      const recipientPayload: any = {
+        customerId: 0, // yeni müşteri oluşturulacak
         refCustomerId: '',
-        cityCode: city?.code || '',        // mutlaka doldur
-        districtCode: district?.code || '', // mutlaka doldur
+        cityCode: Number(city?.code) || 0,
+        districtCode: Number(district?.code) || 0,
         cityName: selectedCity,
         districtName: selectedDistrict,
         address: order.customer.address || 'Adres girilmedi',
-        bussinessPhoneNumber: '', // opsiyonel
+        bussinessPhoneNumber: '',
         email: order.customer.email || '',
         taxOffice: '',
         taxNumber: '',
-        fullName: order.customer.name || '', // doluysa ekle
+        fullName: order.customer.name || '',
         homePhoneNumber: '',
-        mobilePhoneNumber: order.customer.phone || '',
+        mobilePhoneNumber: normalizePhone(order.customer.phone || ''),
       };
 
-      // customerId > 0 ise fullName ekle, 0 veya null ise ekleme
-      if (recipientPayload.customerId && recipientPayload.customerId > 0) {
-        recipientPayload.fullName = order.customer.name;
+      // MNG kuralı:
+      // Eğer customerId doluysa (mevcut müşteri), fullName silinmeli
+      if (
+        recipientPayload.customerId &&
+        recipientPayload.customerId !== 0 &&
+        recipientPayload.customerId !== ''
+      ) {
+        delete recipientPayload.fullName;
       }
 
       const orderData = {
@@ -190,7 +216,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
           barcode: order.id,
           billOfLandingId: 'İrsaliye 1',
           isCOD: paymentType === 3 ? 1 : 0,
-          codAmount: paymentType === 3 ? order.line_items?.reduce((acc, item) => acc + (item.quantity || 1), 0) : 0,
+          codAmount: paymentType === 3 ? Number(order.total_price) || 0 : 0,
           shipmentServiceType: 1,
           packagingType: 1,
           content: `Sipariş: ${order.name}`,
@@ -204,12 +230,20 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
           marketPlaceSaleCode: '',
           pudoId: '',
         },
-        orderPieceList: order.line_items?.map((item, idx) => ({
-          barcode: `${order.id}_PARCA${idx + 1}`,
-          desi: 2,
-          kg: item.quantity || 1,
-          content: item.title || item.name || 'Ürün',
-        })) || [{ barcode: `${order.id}_PARCA1`, desi: 2, kg: 1, content: 'Varsayılan Paket' }],
+        orderPieceList:
+          order.line_items?.map((item, idx) => ({
+            barcode: `${order.id}_PARCA${idx + 1}`,
+            desi: 2,
+            kg: item.quantity || 1,
+            content: item.title || item.name || 'Ürün',
+          })) || [
+            {
+              barcode: `${order.id}_PARCA1`,
+              desi: 2,
+              kg: 1,
+              content: 'Varsayılan Paket',
+            },
+          ],
         recipient: recipientPayload,
       };
 
@@ -224,9 +258,16 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
       setLabelUrl(data.labelUrl || '');
       setBarcode(data.barcode || '');
 
-      onShipmentCreated?.(order.id, data.trackingNumber, data.labelUrl || '', data.barcode);
+      onShipmentCreated?.(
+        order.id,
+        data.trackingNumber,
+        data.labelUrl || '',
+        data.barcode
+      );
 
-      message.success(`Kargo oluşturuldu. Takip No: ${data.trackingNumber || 'Oluşturulamadı'}`);
+      message.success(
+        `Kargo oluşturuldu. Takip No: ${data.trackingNumber || 'Oluşturulamadı'}`
+      );
     } catch (err: unknown) {
       console.error(err);
       message.error('Kargo oluşturulamadı.');
@@ -240,32 +281,83 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', gap: 8 }}>
-        <Select style={{ width: 150 }} placeholder="Kargo Firması" onChange={setCourier} value={courier || undefined} status={!courier ? 'error' : undefined}>
+        <Select
+          style={{ width: 150 }}
+          placeholder="Kargo Firması"
+          onChange={setCourier}
+          value={courier || undefined}
+          status={!courier ? 'error' : undefined}
+        >
           <Option value="MNG">MNG</Option>
         </Select>
 
-        <Select style={{ width: 150 }} placeholder="Şehir" value={selectedCity || undefined} onChange={handleCityChange} status={!selectedCity ? 'error' : undefined}>
-          {cities.map((c: City) => <Option key={c.code} value={c.name}>{c.name}</Option>)}
+        <Select
+          style={{ width: 150 }}
+          placeholder="Şehir"
+          value={selectedCity || undefined}
+          onChange={handleCityChange}
+          status={!selectedCity ? 'error' : undefined}
+        >
+          {cities.map((c: City) => (
+            <Option key={c.code} value={c.name}>
+              {c.name}
+            </Option>
+          ))}
         </Select>
 
-        <Select style={{ width: 150 }} placeholder="İlçe" value={selectedDistrict || undefined} onChange={setSelectedDistrict} loading={loadingDistricts} disabled={!selectedCity} status={!selectedDistrict ? 'error' : undefined}>
-          {districts.map((d: District) => <Option key={d.code} value={d.name}>{d.name}</Option>)}
+        <Select
+          style={{ width: 150 }}
+          placeholder="İlçe"
+          value={selectedDistrict || undefined}
+          onChange={setSelectedDistrict}
+          loading={loadingDistricts}
+          disabled={!selectedCity}
+          status={!selectedDistrict ? 'error' : undefined}
+        >
+          {districts.map((d: District) => (
+            <Option key={d.code} value={d.name}>
+              {d.name}
+            </Option>
+          ))}
         </Select>
 
-        <Select style={{ width: 180 }} placeholder="Ödeme Türü" value={paymentType} onChange={setPaymentType}>
+        <Select
+          style={{ width: 180 }}
+          placeholder="Ödeme Türü"
+          value={paymentType}
+          onChange={setPaymentType}
+        >
           <Option value={1}>Gönderici Ödemeli</Option>
           <Option value={2}>Alıcı Ödemeli</Option>
           <Option value={3}>Kapıda Ödeme</Option>
         </Select>
 
-        <Button type="primary" onClick={handleCreateShipment} loading={loading}>Gönder</Button>
+        <Button
+          type="primary"
+          onClick={handleCreateShipment}
+          loading={loading}
+        >
+          Kargo Oluştur
+        </Button>
       </div>
 
       {(trackingNumber || barcode) && (
         <Paragraph>
-          {trackingNumber && <><strong>Takip No:</strong> {trackingNumber} <br /></>}
-          {labelUrl && <Link href={labelUrl} target="_blank">PDF Label</Link>}
-          {barcode && <div><strong>Barkod:</strong> {barcode}</div>}
+          {trackingNumber && (
+            <>
+              <strong>Takip No:</strong> {trackingNumber} <br />
+            </>
+          )}
+          {labelUrl && (
+            <Link href={labelUrl} target="_blank">
+              PDF Label
+            </Link>
+          )}
+          {barcode && (
+            <div>
+              <strong>Barkod:</strong> {barcode}
+            </div>
+          )}
         </Paragraph>
       )}
     </div>
