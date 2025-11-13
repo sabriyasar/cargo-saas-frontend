@@ -3,6 +3,8 @@ import type { AppProps } from "next/app";
 import createApp from "@shopify/app-bridge";
 import AuthGuard from "@/components/AuthGuard"; // 🔒 AuthGuard’ı içeri al
 import '@/styles/dashboard.scss';
+import '@/styles/creditLoadDropdown.scss';
+import '@/styles/layout.scss';
 import "antd/dist/reset.css"; // (isteğe bağlı: Ant Design reset)
 
 export default function App({ Component, pageProps }: AppProps) {

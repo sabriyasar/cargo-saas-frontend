@@ -1,0 +1,41 @@
+.admin-layout {
+    .logo {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+    }
+  
+    .admin-header {
+      background: #fff;
+      padding: 0 24px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+    }
+  
+    .header-buttons {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+  
+    .logout-btn {
+      white-space: nowrap;
+    }
+  
+    .admin-content {
+      margin: 16px;
+      min-height: calc(100vh - 64px);
+    }
+  }
+  
+  /* Collapsed sider genişliği kontrolü */
+  .ant-layout-sider-collapsed {
+    width: 80px !important;
+  }
+  
