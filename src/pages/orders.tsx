@@ -148,10 +148,22 @@ export default function OrderListPage() {
     }
   };
 
-  const handleShipmentCreated = async (orderId: string, trackingNumber: string, labelUrl: string) => {
-    setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, trackingNumber, labelUrl } : o)));
-    await createShopifyFulfillment(orderId, trackingNumber);
-  };
+  const handleShipmentCreated = async (
+    orderId: string,
+    trackingNumber: string,
+    labelUrl: string,
+    barcode?: string
+  ) => {
+    setOrders(prev =>
+      prev.map(o =>
+        o.id === orderId ? { ...o, trackingNumber, labelUrl, barcode } : o
+      )
+    );
+  
+    if (trackingNumber) {
+      await createShopifyFulfillment(orderId, trackingNumber);
+    }
+  };  
 
   const handleEmailChange = (id: string, value: string) => {
     setOrders(prev =>

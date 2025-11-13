@@ -263,15 +263,17 @@ console.log('📦 MNG Shipment Payload:', JSON.stringify(orderData, null, 2));
         orderData,
       });
 
+      const barcodeValue = data.barcode || data.trackingNumber || '';
+
       setTrackingNumber(data.trackingNumber || '');
       setLabelUrl(data.labelUrl || '');
-      setBarcode(data.barcode || '');
+      setBarcode(barcodeValue);
 
       onShipmentCreated?.(
         order.id,
         data.trackingNumber,
         data.labelUrl || '',
-        data.barcode
+        barcodeValue
       );
 
       message.success(
