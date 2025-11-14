@@ -117,7 +117,7 @@ export default function MNGShipmentForm({
       d => normalizeCityName(d.name) === normalizedDistrict
     );
     if (foundDistrict) setSelectedDistrict(foundDistrict.name);
-  }, [districts]);
+  }, [districts, order.customer.districtName]);  
 
   useEffect(() => {
     if (order.financial_status) {

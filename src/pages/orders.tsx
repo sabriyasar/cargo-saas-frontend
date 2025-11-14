@@ -114,10 +114,11 @@ export default function OrderListPage() {
           barcode: shipment?.barcode,
           customer: {
             ...order.customer,
-            districtName: shipment?.districtName || order.customer.districtName
+            districtName: shipment?.district || order.customer.districtName, // <-- burayı değiştir
+            cityName: shipment?.city || order.customer.cityName           // <-- city de gerekirse
           }
-        };        
-      });
+        };
+      });      
 
       setOrders(ordersWithShipments);
     } catch (err: unknown) {
