@@ -156,18 +156,27 @@ export default function OrderListPage() {
     orderId: string,
     trackingNumber: string,
     labelUrl: string,
-    barcode?: string
+    barcode?: string,
+    districtName?: string // <-- yeni parametre
   ) => {
     setOrders(prev =>
       prev.map(o =>
-        o.id === orderId ? { ...o, trackingNumber, labelUrl, barcode } : o
+        o.id === orderId
+          ? { 
+              ...o, 
+              trackingNumber, 
+              labelUrl, 
+              barcode, 
+              customer: { ...o.customer, districtName: districtName || o.customer.districtName } 
+            }
+          : o
       )
     );
   
     if (trackingNumber) {
       await createShopifyFulfillment(orderId, trackingNumber);
     }
-  };  
+  };    
 
   const handleEmailChange = (id: string, value: string) => {
     setOrders(prev =>
