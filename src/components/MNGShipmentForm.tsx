@@ -351,26 +351,6 @@ console.log('📦 MNG Shipment Payload:', JSON.stringify(orderData, null, 2));
           Kargo Oluştur
         </Button>
       </div>
-
-      {(trackingNumber || barcode) && (
-        <Paragraph>
-          {trackingNumber && (
-            <>
-              <strong>Takip No:</strong> {trackingNumber} <br />
-            </>
-          )}
-          {labelUrl && (
-            <Link href={labelUrl} target="_blank">
-              PDF Label
-            </Link>
-          )}
-          {barcode && (
-            <div>
-              <strong>Barkod:</strong> {barcode}
-            </div>
-          )}
-        </Paragraph>
-      )}
     </div>
   );
 }
