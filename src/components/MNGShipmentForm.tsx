@@ -37,7 +37,9 @@ interface Props {
     orderId: string,
     trackingNumber: string,
     labelUrl: string,
-    barcode?: string
+    barcode?: string,
+    districtName?: string,
+    cityName?: string
   ) => void;
 }
 
@@ -273,7 +275,9 @@ console.log('📦 MNG Shipment Payload:', JSON.stringify(orderData, null, 2));
         order.id,
         data.trackingNumber,
         data.labelUrl || '',
-        barcodeValue
+        barcodeValue,
+        selectedDistrict, // district
+        selectedCity      // city
       );
 
       message.success(

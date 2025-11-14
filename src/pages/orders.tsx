@@ -158,7 +158,8 @@ export default function OrderListPage() {
     trackingNumber: string,
     labelUrl: string,
     barcode?: string,
-    districtName?: string // <-- yeni parametre
+    districtName?: string,
+    cityName?: string
   ) => {
     setOrders(prev =>
       prev.map(o =>
@@ -168,7 +169,11 @@ export default function OrderListPage() {
               trackingNumber, 
               labelUrl, 
               barcode, 
-              customer: { ...o.customer, districtName: districtName || o.customer.districtName } 
+              customer: { 
+                ...o.customer, 
+                districtName: districtName || o.customer.districtName,
+                cityName: cityName || o.customer.cityName
+              } 
             }
           : o
       )
