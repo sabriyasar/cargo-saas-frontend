@@ -256,12 +256,17 @@ export default function MNGShipmentForm({
       };        
 // ---------------- LOG EKLENDİ ----------------
 console.log('📦 MNG Shipment Payload:', JSON.stringify(orderData, null, 2));
-      const data: ShipmentResponse = await createMNGShipment({
-        orderId: order.id,
-        courier,
-        isReturn,
-        orderData,
-      });
+const data: ShipmentResponse = await createMNGShipment({
+  orderId: order.id,
+  courier,
+  isReturn,
+  cityName: selectedCity,
+  districtName: selectedDistrict,
+  districtCode: Number(district?.code),
+  cityCode: Number(city?.code),
+  orderData,
+});
+
 
       const barcodeValue = data.barcode || data.trackingNumber || '';
 

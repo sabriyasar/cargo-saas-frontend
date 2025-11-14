@@ -107,12 +107,16 @@ export default function OrderListPage() {
         const shipment = (shipmentRes.data || []).find(
           (s: any) => String(s.orderId) === String(order.id)
         );
-                return {
+        return {
           ...order,
           trackingNumber: shipment?.trackingNumber,
           labelUrl: shipment?.labelUrl,
-          barcode: shipment?.barcode
-        };
+          barcode: shipment?.barcode,
+          customer: {
+            ...order.customer,
+            districtName: shipment?.districtName || order.customer.districtName
+          }
+        };        
       });
 
       setOrders(ordersWithShipments);
