@@ -32,10 +32,6 @@ export const createMNGShipment = async (data: {
   courier: string;
   isReturn?: boolean;
   orderData: any;
-  cityName?: string;
-  districtName?: string;
-  cityCode?: number;
-  districtCode?: number;
 }): Promise<ShipmentResponse> => {
   const res = await axios.post(`${API_URL}/shipments`, data);
   const d = res.data;
