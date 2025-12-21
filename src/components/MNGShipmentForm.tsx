@@ -26,7 +26,7 @@ interface Order {
     cityName?: string;
     districtName?: string;
     address?: string;
-    customerId?: string | number; // Mevcut müşteri ID
+    customerId?: string | number;
   };
 }
 
@@ -63,7 +63,11 @@ interface ShipmentResponse {
 // ------------------ Yardımcı Fonksiyonlar ------------------
 
 const normalizeCityName = (str: string = '') =>
-  str.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleUpperCase('tr-TR');
+  str
+    .trim()
+    .replace(/I/g, "İ") // Türkçe büyük I sorunu
+    .toLocaleUpperCase('tr-TR');
+ // artık normalize yok
 
 const formatDisplayName = (name: string = '') =>
   name
@@ -77,11 +81,7 @@ const normalizePhone = (phone = '') =>
 
 // ------------------ Component ------------------
 
-export default function MNGShipmentForm({
-  order,
-  isReturn = false,
-  onShipmentCreated,
-}: Props) {
+export default function MNGShipmentForm({ order, isReturn = false, onShipmentCreated }: Props) {
   const [loading, setLoading] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
@@ -94,6 +94,8 @@ export default function MNGShipmentForm({
   const [barcode, setBarcode] = useState('');
   const [loadingDistricts, setLoadingDistricts] = useState(false);
 
+  const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3003';
+
   // ------------------ Şehir ve İlçe Yükleme ------------------
 
   useEffect(() => {
@@ -102,10 +104,11 @@ export default function MNGShipmentForm({
 
   useEffect(() => {
     if (!cities.length) return;
+
+    // Shopify müşteri şehir bilgisini normalize ederek eşle
     const normalizedCustomerCity = normalizeCityName(order.customer.cityName);
-    const foundCity = cities.find(
-      c => normalizeCityName(c.name) === normalizedCustomerCity
-    );
+    const foundCity = cities.find(c => normalizeCityName(c.name) === normalizedCustomerCity);
+
     if (foundCity) {
       setSelectedCity(foundCity.name);
       fetchDistricts(foundCity.code);
@@ -114,12 +117,37 @@ export default function MNGShipmentForm({
 
   useEffect(() => {
     if (!districts.length || !order.customer.districtName) return;
+  
     const normalizedDistrict = normalizeCityName(order.customer.districtName);
-    const foundDistrict = districts.find(
-      d => normalizeCityName(d.name) === normalizedDistrict
-    );
-    if (foundDistrict) setSelectedDistrict(foundDistrict.name);
+    const foundDistrict = districts.find(d => normalizeCityName(d.name) === normalizedDistrict);
+  
+    if (foundDistrict) setSelectedDistrict(formatDisplayName(foundDistrict.name)); // <-- burada
   }, [districts, order.customer.districtName]);  
+
+  // ------------------ Mevcut Shipment Adresi Backend’den Çek ------------------
+
+  useEffect(() => {
+    const fetchShipmentAddress = async () => {
+      if (!order?.id) return;
+
+      try {
+        const res = await fetch(`${API_URL}/shipments?orderIds=${order.id}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (data?.length > 0) {
+          const shipment = data[0];
+          if (shipment.city) setSelectedCity(formatDisplayName(shipment.city));
+          if (shipment.district) setSelectedDistrict(formatDisplayName(shipment.district));
+
+        }
+      } catch (err: any) {
+        console.error('❌ Shipment adresi alınamadı:', err.message);
+      }
+    };
+
+    fetchShipmentAddress();
+  }, [order.id]);
 
   useEffect(() => {
     if (order.financial_status) {
@@ -135,7 +163,7 @@ export default function MNGShipmentForm({
       const res = await getCities();
       const cityList: City[] = (res.data?.data || res.data || []).map((c: any) => ({
         ...c,
-        name: formatDisplayName(c.name),
+        name: formatDisplayName(c.name), // <-- Kocaeli gibi
       }));
       setCities(cityList);
     } catch (err) {
@@ -148,13 +176,18 @@ export default function MNGShipmentForm({
     setLoadingDistricts(true);
     try {
       const res = await getDistrictsByCityCode(cityCode);
-      const districtList: District[] = (res.data?.data || res.data || []).map(
-        (d: any) => ({
-          ...d,
-          name: formatDisplayName(d.name),
-        })
-      );
+      const districtList: District[] = (res.data?.data || res.data || []).map((d: any) => ({
+        ...d,
+        name: formatDisplayName(d.name), // <-- Darıca gibi
+      }));
       setDistricts(districtList);
+  
+      // Shopify müşteri ilçesini eşle
+      if (order.customer.districtName) {
+        const normalizedDistrict = normalizeCityName(order.customer.districtName);
+        const foundDistrict = districtList.find(d => normalizeCityName(d.name) === normalizedDistrict);
+        if (foundDistrict) setSelectedDistrict(formatDisplayName(foundDistrict.name)); // <-- burada
+      }
     } catch (err) {
       console.error('İlçeler alınamadı', err);
       message.error('İlçeler alınamadı.');
@@ -165,11 +198,11 @@ export default function MNGShipmentForm({
   };
 
   const handleCityChange = (value: string) => {
-    setSelectedCity(value);
+    setSelectedCity(formatDisplayName(value)); // <-- burayı ekle
     setSelectedDistrict('');
-    const city = cities.find(c => c.name === value);
+    const city = cities.find(c => c.name === formatDisplayName(value));
     if (city) fetchDistricts(city.code);
-  };
+  };  
 
   // ------------------ Shipment + Barcode Oluşturma ------------------
 
@@ -186,8 +219,8 @@ export default function MNGShipmentForm({
       const city = cities.find(c => c.name === selectedCity);
       const district = districts.find(d => d.name === selectedDistrict);
 
-      // ------------------ recipientPayload ------------------
       const isExistingCustomer = !!order.customer.customerId;
+
       const recipientPayload: any = {
         customerId: isExistingCustomer ? order.customer.customerId : "",
         refCustomerId: "",
@@ -207,8 +240,8 @@ export default function MNGShipmentForm({
 
       const orderData = {
         order: {
-          referenceId: order.id.toString(),    // SIPARIS34562
-          barcode: order.id.toString(),        // SIPARIS34567
+          referenceId: order.id.toString(),
+          barcode: order.id.toString(),
           billOfLandingId: 'İrsaliye 1',
           isCOD: paymentType === 3 ? 1 : 0,
           codAmount: paymentType === 3 ? Number(order.total_price) || 0 : 0,
@@ -239,25 +272,9 @@ export default function MNGShipmentForm({
               content: 'Varsayılan Paket'
             }
           ],
-        recipient: {
-          customerId: order.customer.customerId ? order.customer.customerId : "",
-          refCustomerId: "",
-          cityCode: Number(city?.code) || 0,
-          districtCode: Number(district?.code) || 0,
-          cityName: selectedCity.toUpperCase(),
-          districtName: selectedDistrict.toUpperCase(),
-          address: order.customer.address || 'Adres girilmedi',
-          bussinessPhoneNumber: '',
-          email: order.customer.email || '',
-          taxOffice: '',
-          taxNumber: '',
-          fullName: order.customer.customerId ? "" : order.customer.name || "",
-          homePhoneNumber: '',
-          mobilePhoneNumber: normalizePhone(order.customer.phone || '')
-        }
-      };        
-// ---------------- LOG EKLENDİ ----------------
-console.log('📦 MNG Shipment Payload:', JSON.stringify(orderData, null, 2));
+        recipient: recipientPayload
+      };
+
       const data: ShipmentResponse = await createMNGShipment({
         orderId: order.id,
         courier,
@@ -276,8 +293,8 @@ console.log('📦 MNG Shipment Payload:', JSON.stringify(orderData, null, 2));
         data.trackingNumber,
         data.labelUrl || '',
         barcodeValue,
-        selectedDistrict, // district
-        selectedCity      // city
+        selectedDistrict,
+        selectedCity
       );
 
       message.success(

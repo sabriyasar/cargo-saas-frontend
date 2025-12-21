@@ -32,9 +32,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         collapsible
         collapsedWidth={80} // dar hali
         breakpoint="lg" // lg altı otomatik collapse
-        onBreakpoint={(broken) => {
-          console.log('breakpoint:', broken);
-        }}
       >
         <div className="logo">Kargo Paneli</div>
         <Menu theme="dark" mode="inline" selectedKeys={[selectedKey]}>

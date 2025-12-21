@@ -129,30 +129,6 @@ export default function OrderListPage() {
     }
   };
 
-  const createShopifyFulfillment = async (orderId: string, trackingNumber: string) => {
-    try {
-      const shopRecord = await axios.get(`${API_URL}/shopify/settings`);
-      const accessToken = shopRecord.data.accessToken;
-      const shop = shopRecord.data.shop;
-      if (!accessToken || !shop) return;
-
-      await axios.post(
-        `https://${shop}/admin/api/2025-10/orders/${orderId}/fulfillments.json`,
-        {
-          fulfillment: {
-            tracking_number: trackingNumber,
-            notify_customer: true,
-          },
-        },
-        {
-          headers: { 'X-Shopify-Access-Token': accessToken },
-        }
-      );
-    } catch (err) {
-      console.error('Shopify fulfillment oluşturulamadı:', err);
-    }
-  };
-
   const handleShipmentCreated = async (
     orderId: string,
     trackingNumber: string,
@@ -178,10 +154,6 @@ export default function OrderListPage() {
           : o
       )
     );
-  
-    if (trackingNumber) {
-      await createShopifyFulfillment(orderId, trackingNumber);
-    }
   };    
 
   const handleEmailChange = (id: string, value: string) => {
