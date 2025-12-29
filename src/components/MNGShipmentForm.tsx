@@ -132,7 +132,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
 
       try {
         const res = await fetch(`${API_URL}/shipments?orderIds=${order.id}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`HTTPS ${res.status}`);
         const data = await res.json();
 
         if (data?.length > 0) {
