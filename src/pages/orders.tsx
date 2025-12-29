@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Table, message, Input } from 'antd';
+import { Table, message, Input, Typography } from 'antd';
 import AdminLayout from '@/components/Layout';
 import MNGShipmentForm from '../components/MNGShipmentForm';
 import { getShopifyOrders, getShipmentsByOrderIds } from '@/services/api';
 
 const { TextArea } = Input;
+const { Text } = Typography;
 
 interface Customer {
   name: string;
@@ -184,16 +185,31 @@ export default function OrderListPage() {
     {
       title: 'Kargo Bilgisi',
       render: (_: any, record: Order) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div>
-            <strong>Barkod:</strong> {record.barcode || 'Yok'}
+            <strong>Barkod:</strong>{' '}
+            {record.barcode ? (
+              <Text copyable={{ text: record.barcode }}>
+                {record.barcode}
+              </Text>
+            ) : (
+              'Yok'
+            )}
           </div>
+    
           <div>
-            <strong>Takip No:</strong> {record.trackingNumber || 'Yok'}
+            <strong>Takip No:</strong>{' '}
+            {record.trackingNumber ? (
+              <Text copyable={{ text: record.trackingNumber }}>
+                {record.trackingNumber}
+              </Text>
+            ) : (
+              'Yok'
+            )}
           </div>
         </div>
       ),
-    },
+    },    
 
     {
       title: 'E-Posta',
