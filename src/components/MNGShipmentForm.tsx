@@ -324,34 +324,40 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
         </Select>
 
         <Select
-          style={{ width: 150 }}
-          placeholder="Şehir"
-          value={selectedCity || undefined}
-          onChange={handleCityChange}
-          status={!selectedCity ? 'error' : undefined}
-        >
-          {cities.map((c: City) => (
-            <Option key={c.code} value={c.name}>
-              {c.name}
-            </Option>
-          ))}
-        </Select>
+  showSearch
+  optionFilterProp="children"
+  style={{ width: 150 }}
+  placeholder="Şehir"
+  value={selectedCity || undefined}
+  onChange={handleCityChange}
+  status={!selectedCity ? 'error' : undefined}
+>
+  {cities.map((c: City) => (
+    <Option key={c.code} value={c.name}>
+      {c.name}
+    </Option>
+  ))}
+</Select>
 
-        <Select
-          style={{ width: 150 }}
-          placeholder="İlçe"
-          value={selectedDistrict || undefined}
-          onChange={setSelectedDistrict}
-          loading={loadingDistricts}
-          disabled={!selectedCity}
-          status={!selectedDistrict ? 'error' : undefined}
-        >
-          {districts.map((d: District) => (
-            <Option key={d.code} value={d.name}>
-              {d.name}
-            </Option>
-          ))}
-        </Select>
+
+<Select
+  showSearch
+  optionFilterProp="children"
+  style={{ width: 150 }}
+  placeholder="İlçe"
+  value={selectedDistrict || undefined}
+  onChange={setSelectedDistrict}
+  loading={loadingDistricts}
+  disabled={!selectedCity}
+  status={!selectedDistrict ? 'error' : undefined}
+>
+  {districts.map((d: District) => (
+    <Option key={d.code} value={d.name}>
+      {d.name}
+    </Option>
+  ))}
+</Select>
+
 
         <Select
           style={{ width: 180 }}
