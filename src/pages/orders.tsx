@@ -3,7 +3,8 @@ import { Table, message, Input } from 'antd';
 import AdminLayout from '@/components/Layout';
 import MNGShipmentForm from '../components/MNGShipmentForm';
 import { getShopifyOrders, getShipmentsByOrderIds } from '@/services/api';
-import axios from 'axios';
+
+const { TextArea } = Input;
 
 interface Customer {
   name: string;
@@ -18,9 +19,6 @@ export interface Order {
   id: string;
   name: string;
   total_price: string;
-  currency?: string;
-  order_status_url?: string;
-  line_items?: { title: string; quantity: number }[];
   customer: Customer;
   created_at?: string;
   trackingNumber?: string;
@@ -29,8 +27,6 @@ export interface Order {
 }
 
 interface RawShippingAddress {
-  first_name?: string;
-  last_name?: string;
   address1?: string;
   city?: string;
   province?: string;
@@ -58,15 +54,13 @@ interface RawOrder {
 
 function normalize(str: string) {
   if (!str) return '';
-  const lower = str.trim().toLocaleLowerCase('tr-TR'); // Türkçe küçük harf
+  const lower = str.trim().toLocaleLowerCase('tr-TR');
   return lower.charAt(0).toLocaleUpperCase('tr-TR') + lower.slice(1);
 }
 
 export default function OrderListPage() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-
-  const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3003';
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -75,10 +69,10 @@ export default function OrderListPage() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const res = await getShopifyOrders(); // shop param yok, backend kendi .env'den alıyor
+      const res = await getShopifyOrders();
       const rawOrders: RawOrder[] = res.data.data || [];
 
-      const ordersWithAddress: Order[] = rawOrders.map((order: RawOrder) => {
+      const ordersWithAddress: Order[] = rawOrders.map(order => {
         const customer = order.customer || {};
         const shipping = order.shipping_address || customer.default_address || {};
 
@@ -107,6 +101,7 @@ export default function OrderListPage() {
         const shipment = (shipmentRes.data || []).find(
           (s: any) => String(s.orderId) === String(order.id)
         );
+
         return {
           ...order,
           trackingNumber: shipment?.trackingNumber,
@@ -114,22 +109,36 @@ export default function OrderListPage() {
           barcode: shipment?.barcode,
           customer: {
             ...order.customer,
-            districtName: shipment?.district || order.customer.districtName, // <-- burayı değiştir
-            cityName: shipment?.city || order.customer.cityName           // <-- city de gerekirse
-          }
+            districtName: shipment?.district || order.customer.districtName,
+            cityName: shipment?.city || order.customer.cityName,
+          },
         };
-      });      
+      });
 
       setOrders(ordersWithShipments);
-    } catch (err: unknown) {
-      if (err instanceof Error) message.error('Siparişler alınamadı: ' + err.message);
-      else message.error('Siparişler alınamadı: Bilinmeyen hata');
+    } catch {
+      message.error('Siparişler alınamadı');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleShipmentCreated = async (
+  // 🔹 Ortak editable handler
+  const handleCustomerFieldChange = (
+    orderId: string,
+    field: keyof Customer,
+    value: string
+  ) => {
+    setOrders(prev =>
+      prev.map(o =>
+        o.id === orderId
+          ? { ...o, customer: { ...o.customer, [field]: value } }
+          : o
+      )
+    );
+  };
+
+  const handleShipmentCreated = (
     orderId: string,
     trackingNumber: string,
     labelUrl: string,
@@ -140,66 +149,128 @@ export default function OrderListPage() {
     setOrders(prev =>
       prev.map(o =>
         o.id === orderId
-          ? { 
-              ...o, 
-              trackingNumber, 
-              labelUrl, 
-              barcode, 
-              customer: { 
-                ...o.customer, 
+          ? {
+              ...o,
+              trackingNumber,
+              labelUrl,
+              barcode,
+              customer: {
+                ...o.customer,
                 districtName: districtName || o.customer.districtName,
-                cityName: cityName || o.customer.cityName
-              } 
+                cityName: cityName || o.customer.cityName,
+              },
             }
           : o
       )
     );
-  };    
-
-  const handleEmailChange = (id: string, value: string) => {
-    setOrders(prev =>
-      prev.map(o => (o.id === id ? { ...o, customer: { ...o.customer, email: value } } : o))
-    );
   };
 
   const columns = [
-    { title: 'Sipariş Numarası', dataIndex: 'name', key: 'name' },
-    { title: 'Müşteri Adı', dataIndex: ['customer', 'name'], key: 'customer' },
+    { title: 'Sipariş No', dataIndex: 'name' },
+
     {
-      title: 'Barkod',
-      key: 'barcode',
-      render: (_: any, record: Order) =>
-        record.barcode ? record.barcode : 'Barkod henüz oluşturulmadı',      
-    },
-    {
-      title: 'E-Posta',
-      key: 'email',
+      title: 'Müşteri',
       render: (_: any, record: Order) => (
         <Input
-          value={record.customer.email}
-          placeholder="E-posta giriniz"
-          onChange={e => handleEmailChange(record.id, e.target.value)}
+          value={record.customer.name}
+          placeholder="Müşteri adı"
+          onChange={e =>
+            handleCustomerFieldChange(record.id, 'name', e.target.value)
+          }
         />
       ),
     },
-    { title: 'Telefon', dataIndex: ['customer', 'phone'], key: 'phone' },
+
+    {
+      title: 'Kargo Bilgisi',
+      render: (_: any, record: Order) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div>
+            <strong>Barkod:</strong> {record.barcode || 'Yok'}
+          </div>
+          <div>
+            <strong>Takip No:</strong> {record.trackingNumber || '-'}
+          </div>
+        </div>
+      ),
+    },
+
+    {
+      title: 'E-Posta',
+      render: (_: any, record: Order) => (
+        <Input
+          value={record.customer.email}
+          placeholder="E-posta"
+          onChange={e =>
+            handleCustomerFieldChange(record.id, 'email', e.target.value)
+          }
+        />
+      ),
+    },
+
+    {
+      title: 'Telefon',
+      render: (_: any, record: Order) => (
+        <Input
+          value={record.customer.phone}
+          placeholder="Telefon"
+          onChange={e =>
+            handleCustomerFieldChange(record.id, 'phone', e.target.value)
+          }
+        />
+      ),
+    },
+
+    {
+      title: 'İl',
+      render: (_: any, record: Order) => (
+        <Input
+          value={record.customer.cityName}
+          placeholder="İl"
+          onChange={e =>
+            handleCustomerFieldChange(record.id, 'cityName', e.target.value)
+          }
+        />
+      ),
+    },
+
+    {
+      title: 'İlçe',
+      render: (_: any, record: Order) => (
+        <Input
+          value={record.customer.districtName}
+          placeholder="İlçe"
+          onChange={e =>
+            handleCustomerFieldChange(record.id, 'districtName', e.target.value)
+          }
+        />
+      ),
+    },
+
     {
       title: 'Adres',
-      key: 'address',
-      render: (_: any, record: Order) =>
-        `${record.customer.address}, ${record.customer.districtName}, ${record.customer.cityName}`,
+      width: 280,
+      render: (_: any, record: Order) => (
+        <TextArea
+          value={record.customer.address}
+          placeholder="Adres"
+          autoSize={{ minRows: 2, maxRows: 4 }}
+          onChange={e =>
+            handleCustomerFieldChange(record.id, 'address', e.target.value)
+          }
+        />
+      ),
     },
-    { title: 'Toplam', dataIndex: 'total_price', key: 'total' },
-    {
-      title: 'Takip No',
-      key: 'tracking',
-      render: (_: any, record: Order) => record.trackingNumber || '-',
-    },
+
+    { title: 'Toplam', dataIndex: 'total_price' },
+
     {
       title: 'Kargo',
-      key: 'shipment',
-      render: (_value: unknown, record: Order) => (
-        <MNGShipmentForm order={record} onShipmentCreated={handleShipmentCreated} />
+      render: (_: any, record: Order) => (
+        <MNGShipmentForm
+          order={record}
+          onShipmentCreated={handleShipmentCreated}
+        />
       ),
     },
   ];
