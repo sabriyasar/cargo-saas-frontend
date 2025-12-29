@@ -189,7 +189,7 @@ export default function OrderListPage() {
             <strong>Barkod:</strong> {record.barcode || 'Yok'}
           </div>
           <div>
-            <strong>Takip No:</strong> {record.trackingNumber || '-'}
+            <strong>Takip No:</strong> {record.trackingNumber || 'Yok'}
           </div>
         </div>
       ),
