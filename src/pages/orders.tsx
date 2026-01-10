@@ -74,26 +74,37 @@ export default function OrderListPage() {
       const rawOrders: RawOrder[] = res.data.data || [];
 
       const ordersWithAddress: Order[] = rawOrders.map(order => {
-        const customer = order.customer || {};
-        const shipping = order.shipping_address || customer.default_address || {};
-
+        const customer = order.customer ?? {};
+        const shipping =
+          order.shipping_address ??
+          customer.default_address ??
+          {};
+      
         return {
           id: order.id.toString(),
           name: order.name || `#${order.id}`,
           total_price: order.total_price || '0',
           customer: {
-            name: customer.first_name
-              ? `${customer.first_name} ${customer.last_name || ''}`.trim()
-              : 'Müşteri Bilgisi Yok',
-            phone: customer.phone || shipping.phone || order.phone || '',
-            email: customer.email || order.email || '',
+            name:
+              customer.first_name || customer.last_name
+                ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
+                : 'Müşteri Bilgisi Yok',
+            phone:
+              customer.phone ||
+              shipping.phone ||
+              order.phone ||
+              '',
+            email:
+              customer.email ||
+              order.email ||
+              '',
             cityName: normalize(shipping.city || ''),
             districtName: normalize(shipping.province || ''),
             address: shipping.address1 || '',
           },
           created_at: order.created_at,
         };
-      });
+      });      
 
       const orderIds = ordersWithAddress.map(o => o.id).join(',');
       const shipmentRes = await getShipmentsByOrderIds(orderIds);
@@ -166,6 +177,10 @@ export default function OrderListPage() {
     );
   };
 
+  useEffect(() => {
+    console.log('🧪 ORDERS STATE:', orders);
+  }, [orders]);  
+
   const columns = [
     { title: 'Sipariş No', dataIndex: 'name' },
 
@@ -173,7 +188,7 @@ export default function OrderListPage() {
       title: 'Müşteri',
       render: (_: any, record: Order) => (
         <Input
-          value={record.customer.name}
+          value={record.customer?.name || ''}
           placeholder="Müşteri adı"
           onChange={e =>
             handleCustomerFieldChange(record.id, 'name', e.target.value)
@@ -215,7 +230,7 @@ export default function OrderListPage() {
       title: 'E-Posta',
       render: (_: any, record: Order) => (
         <Input
-          value={record.customer.email}
+          value={record.customer?.email || ''}
           placeholder="E-posta"
           onChange={e =>
             handleCustomerFieldChange(record.id, 'email', e.target.value)
@@ -228,7 +243,7 @@ export default function OrderListPage() {
       title: 'Telefon',
       render: (_: any, record: Order) => (
         <Input
-          value={record.customer.phone}
+          value={record.customer?.phone || ''}
           placeholder="Telefon"
           onChange={e =>
             handleCustomerFieldChange(record.id, 'phone', e.target.value)
@@ -241,7 +256,7 @@ export default function OrderListPage() {
       title: 'İl',
       render: (_: any, record: Order) => (
         <Input
-          value={record.customer.cityName}
+          value={record.customer?.cityName || ''}
           placeholder="İl"
           onChange={e =>
             handleCustomerFieldChange(record.id, 'cityName', e.target.value)
@@ -254,7 +269,7 @@ export default function OrderListPage() {
       title: 'İlçe',
       render: (_: any, record: Order) => (
         <Input
-          value={record.customer.districtName}
+          value={record.customer?.districtName || ''}
           placeholder="İlçe"
           onChange={e =>
             handleCustomerFieldChange(record.id, 'districtName', e.target.value)
@@ -268,7 +283,7 @@ export default function OrderListPage() {
       width: 280,
       render: (_: any, record: Order) => (
         <TextArea
-          value={record.customer.address}
+          value={record.customer?.address || ''}
           placeholder="Adres"
           autoSize={{ minRows: 2, maxRows: 4 }}
           onChange={e =>
