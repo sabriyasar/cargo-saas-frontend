@@ -29,6 +29,7 @@ export const createShopifyFulfillment = async (orderId: string, trackingNumber: 
 ================================ */
 export const createMNGShipment = async (data: {
   orderId: string;
+  shop: string;
   courier: string;
   isReturn?: boolean;
   orderData: any;

@@ -20,6 +20,7 @@ export interface Order {
   id: string;
   name: string;
   total_price: string;
+  shop: string; // 🔴 KRİTİK
   customer: Customer;
   created_at?: string;
   trackingNumber?: string;
@@ -51,6 +52,7 @@ interface RawOrder {
   phone?: string;
   email?: string;
   created_at?: string;
+  shop?: string; // 👈 backend’ten geliyor
 }
 
 function normalize(str: string) {
@@ -79,11 +81,12 @@ export default function OrderListPage() {
           order.shipping_address ??
           customer.default_address ??
           {};
-      
+
         return {
-          id: order.id.toString(),
+          id: String(order.id),
           name: order.name || `#${order.id}`,
           total_price: order.total_price || '0',
+          shop: order.shop || '', // 🔴 ZORUNLU
           customer: {
             name:
               customer.first_name || customer.last_name
@@ -104,14 +107,14 @@ export default function OrderListPage() {
           },
           created_at: order.created_at,
         };
-      });      
+      });
 
       const orderIds = ordersWithAddress.map(o => o.id).join(',');
       const shipmentRes = await getShipmentsByOrderIds(orderIds);
 
       const ordersWithShipments = ordersWithAddress.map(order => {
         const shipment = (shipmentRes.data || []).find(
-          (s: any) => String(s.orderId) === String(order.id)
+          (s: any) => String(s.orderId) === order.id
         );
 
         return {
@@ -128,14 +131,13 @@ export default function OrderListPage() {
       });
 
       setOrders(ordersWithShipments);
-    } catch {
+    } catch (err) {
       message.error('Siparişler alınamadı');
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔹 Ortak editable handler
   const handleCustomerFieldChange = (
     orderId: string,
     field: keyof Customer,
@@ -177,10 +179,6 @@ export default function OrderListPage() {
     );
   };
 
-  useEffect(() => {
-    console.log('🧪 ORDERS STATE:', orders);
-  }, [orders]);  
-
   const columns = [
     { title: 'Sipariş No', dataIndex: 'name' },
 
@@ -188,8 +186,7 @@ export default function OrderListPage() {
       title: 'Müşteri',
       render: (_: any, record: Order) => (
         <Input
-          value={record.customer?.name || ''}
-          placeholder="Müşteri adı"
+          value={record.customer.name}
           onChange={e =>
             handleCustomerFieldChange(record.id, 'name', e.target.value)
           }
@@ -204,77 +201,21 @@ export default function OrderListPage() {
           <div>
             <strong>Barkod:</strong>{' '}
             {record.barcode ? (
-              <Text copyable={{ text: record.barcode }}>
-                {record.barcode}
-              </Text>
+              <Text copyable>{record.barcode}</Text>
             ) : (
               'Yok'
             )}
           </div>
-    
+
           <div>
             <strong>Takip No:</strong>{' '}
             {record.trackingNumber ? (
-              <Text copyable={{ text: record.trackingNumber }}>
-                {record.trackingNumber}
-              </Text>
+              <Text copyable>{record.trackingNumber}</Text>
             ) : (
               'Yok'
             )}
           </div>
         </div>
-      ),
-    },    
-
-    {
-      title: 'E-Posta',
-      render: (_: any, record: Order) => (
-        <Input
-          value={record.customer?.email || ''}
-          placeholder="E-posta"
-          onChange={e =>
-            handleCustomerFieldChange(record.id, 'email', e.target.value)
-          }
-        />
-      ),
-    },
-
-    {
-      title: 'Telefon',
-      render: (_: any, record: Order) => (
-        <Input
-          value={record.customer?.phone || ''}
-          placeholder="Telefon"
-          onChange={e =>
-            handleCustomerFieldChange(record.id, 'phone', e.target.value)
-          }
-        />
-      ),
-    },
-
-    {
-      title: 'İl',
-      render: (_: any, record: Order) => (
-        <Input
-          value={record.customer?.cityName || ''}
-          placeholder="İl"
-          onChange={e =>
-            handleCustomerFieldChange(record.id, 'cityName', e.target.value)
-          }
-        />
-      ),
-    },
-
-    {
-      title: 'İlçe',
-      render: (_: any, record: Order) => (
-        <Input
-          value={record.customer?.districtName || ''}
-          placeholder="İlçe"
-          onChange={e =>
-            handleCustomerFieldChange(record.id, 'districtName', e.target.value)
-          }
-        />
       ),
     },
 
@@ -283,8 +224,7 @@ export default function OrderListPage() {
       width: 280,
       render: (_: any, record: Order) => (
         <TextArea
-          value={record.customer?.address || ''}
-          placeholder="Adres"
+          value={record.customer.address}
           autoSize={{ minRows: 2, maxRows: 4 }}
           onChange={e =>
             handleCustomerFieldChange(record.id, 'address', e.target.value)
@@ -299,7 +239,7 @@ export default function OrderListPage() {
       title: 'Kargo',
       render: (_: any, record: Order) => (
         <MNGShipmentForm
-          order={record}
+          order={record} // 🔴 shop artık burada
           onShipmentCreated={handleShipmentCreated}
         />
       ),
