@@ -18,6 +18,7 @@ interface Order {
   name: string;
   total_price: string;
   shop: string;
+  shopifyOrderId: string;
   financial_status?: string;
   line_items?: LineItem[];
   customer: {
@@ -278,6 +279,7 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
 
       const data: ShipmentResponse = await createMNGShipment({
         orderId: order.id,
+        shopifyOrderId: order.shopifyOrderId,
         shop: order.shop,
         courier,
         isReturn,

@@ -20,7 +20,8 @@ export interface Order {
   id: string;
   name: string;
   total_price: string;
-  shop: string; // 🔴 KRİTİK
+  shop: string;
+  shopifyOrderId: string;
   customer: Customer;
   created_at?: string;
   trackingNumber?: string;
@@ -84,6 +85,7 @@ export default function OrderListPage() {
 
         return {
           id: String(order.id),
+          shopifyOrderId: String(order.id),
           name: order.name || `#${order.id}`,
           total_price: order.total_price || '0',
           shop: order.shop || '', // 🔴 ZORUNLU

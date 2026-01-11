@@ -16,8 +16,11 @@ export interface ShipmentResponse {
 /* ================================
    🔹 SHOPIFY SERVİSLERİ
 ================================ */
-export const getShopifyOrders = async () => {
-  return axios.get(`${API_URL}/shopify/orders?status=any`);
+export const getShopifyOrders = async (params?: {
+  financial_status?: 'paid';
+  fulfillment_status?: 'unfulfilled';
+}) => {
+  return axios.get(`${API_URL}/shopify/orders`, { params });
 };
 
 export const createShopifyFulfillment = async (orderId: string, trackingNumber: string) => {
@@ -29,6 +32,7 @@ export const createShopifyFulfillment = async (orderId: string, trackingNumber: 
 ================================ */
 export const createMNGShipment = async (data: {
   orderId: string;
+  shopifyOrderId: string;
   shop: string;
   courier: string;
   isReturn?: boolean;
