@@ -115,9 +115,11 @@ export default function OrderListPage() {
       const shipmentRes = await getShipmentsByOrderIds(orderIds);
 
       const ordersWithShipments = ordersWithAddress.map(order => {
-        const shipment = (shipmentRes.data || []).find(
-          (s: any) => String(s.orderId) === order.id
-        );
+        const shipmentList = shipmentRes.data?.data || [];
+
+const shipment = shipmentList.find(
+  (s: any) => String(s.orderId) === order.id
+);
 
         return {
           ...order,
