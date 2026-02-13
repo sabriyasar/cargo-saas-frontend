@@ -30,10 +30,15 @@ export interface Order {
 }
 
 interface RawShippingAddress {
+  first_name?: string;
+  last_name?: string;
   address1?: string;
+  address2?: string;
   city?: string;
   province?: string;
+  zip?: string;
   phone?: string;
+  company?: string;
 }
 
 interface RawCustomer {
@@ -71,76 +76,39 @@ export default function OrderListPage() {
   }, []);
 
   const fetchOrders = async () => {
-    setLoading(true);
-    try {
-      const res = await getShopifyOrders();
-      const rawOrders: RawOrder[] = res.data.data || [];
+  setLoading(true);
+  try {
+    const res = await getShopifyOrders();
+    console.log("BACKEND ORDER:", res.data.data[0]);
+    const backendOrders = res.data.data || [];
 
-      const ordersWithAddress: Order[] = rawOrders.map(order => {
-        const customer = order.customer ?? {};
-        const shipping =
-          order.shipping_address ??
-          customer.default_address ??
-          {};
+    const orderIds = backendOrders.map((o: any) => o.id).join(',');
 
-        return {
-          id: String(order.id),
-          shopifyOrderId: String(order.id),
-          name: order.name || `#${order.id}`,
-          total_price: order.total_price || '0',
-          shop: order.shop || '', // 🔴 ZORUNLU
-          customer: {
-            name:
-              customer.first_name || customer.last_name
-                ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
-                : 'Müşteri Bilgisi Yok',
-            phone:
-              customer.phone ||
-              shipping.phone ||
-              order.phone ||
-              '',
-            email:
-              customer.email ||
-              order.email ||
-              '',
-            cityName: normalize(shipping.city || ''),
-            districtName: normalize(shipping.province || ''),
-            address: shipping.address1 || '',
-          },
-          created_at: order.created_at,
-        };
-      });
+    const shipmentRes = await getShipmentsByOrderIds(orderIds);
+    const shipments = shipmentRes.data.data || [];
 
-      const orderIds = ordersWithAddress.map(o => o.id).join(',');
-      const shipmentRes = await getShipmentsByOrderIds(orderIds);
+    const mergedOrders = backendOrders.map((order: any) => {
+      const shipment = shipments.find(
+        (s: any) =>
+          s.shopifyOrderId === `gid://shopify/Order/${order.id}`
+      );
 
-      const ordersWithShipments = ordersWithAddress.map(order => {
-        const shipmentList = shipmentRes.data?.data || [];
+      return {
+        ...order,
+        shop: order.shop || '',
+        trackingNumber: shipment?.trackingNumber,
+        labelUrl: shipment?.labelUrl,
+        barcode: shipment?.barcode,
+      };
+    });
 
-const shipment = shipmentList.find(
-  (s: any) => String(s.orderId) === order.id
-);
-
-        return {
-          ...order,
-          trackingNumber: shipment?.trackingNumber,
-          labelUrl: shipment?.labelUrl,
-          barcode: shipment?.barcode,
-          customer: {
-            ...order.customer,
-            districtName: shipment?.district || order.customer.districtName,
-            cityName: shipment?.city || order.customer.cityName,
-          },
-        };
-      });
-
-      setOrders(ordersWithShipments);
-    } catch (err) {
-      message.error('Siparişler alınamadı');
-    } finally {
-      setLoading(false);
-    }
-  };
+    setOrders(mergedOrders);
+  } catch (err) {
+    message.error('Siparişler alınamadı');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleCustomerFieldChange = (
     orderId: string,
