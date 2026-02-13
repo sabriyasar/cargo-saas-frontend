@@ -50,38 +50,32 @@ export default function OrderListPage() {
       const shipments = shipmentRes.data.data || [];
 
       const mergedOrders: Order[] = backendOrders.map((order: any) => {
-        const shipment = shipments.find(
-          (s: any) => s.shopifyOrderId === `gid://shopify/Order/${order.id}`
-        );
+  const shipment = shipments.find(
+    (s: any) => s.orderID === order.orderID
+  );
 
-        // Adres kaynağı: shipping > billing > default
-        const sourceAddress = order.customer?.default_address || order.shipping_address || {};
-
-        return {
-          id: order.id,
-          name: order.name || `#${order.id}`,
-          total_price: order.total_price || '0',
-          shop: order.shop || '',
-          shopifyOrderId: `gid://shopify/Order/${order.id}`,
-          customer: {
-            name:
-              sourceAddress.first_name || sourceAddress.last_name
-                ? `${sourceAddress.first_name || ''} ${sourceAddress.last_name || ''}`.trim()
-                : `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
-            email: order.customer?.email || order.email || '',
-            phone: sourceAddress.phone || order.customer?.phone || order.phone || '',
-            cityName: sourceAddress.city || '',
-            districtName: sourceAddress.province || '',
-            address: sourceAddress.address1 || '',
-            address2: sourceAddress.address2 || '',
-            company: sourceAddress.company || '',
-          },
-          trackingNumber: shipment?.trackingNumber,
-          labelUrl: shipment?.labelUrl,
-          barcode: shipment?.barcode,
-          created_at: order.created_at,
-        };
-      });
+  return {
+    id: order.orderID,
+    name: order.orderID,
+    total_price: order.grandTotal?.toString() || '0',
+    shop: order.storeName || '',
+    shopifyOrderId: order.ID?.toString() || '',
+    customer: {
+      name: order.name || '',
+      email: '', // Shopify JSON’da yoksa boş
+      phone: '', // Shopify JSON’da yoksa boş
+      cityName: order.cityName || '',
+      districtName: '', // JSON’da yok
+      address: order.address || '',
+      address2: '', // opsiyonel
+      company: '', // opsiyonel
+    },
+    trackingNumber: shipment?.shipmentNumber || '',
+    labelUrl: shipment?.labelUrl || '',
+    barcode: shipment?.barcode || '',
+    created_at: order.createdAt,
+  };
+});
 
       setOrders(mergedOrders);
     } catch (err) {
