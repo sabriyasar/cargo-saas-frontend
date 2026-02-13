@@ -13,7 +13,9 @@ interface Customer {
   phone?: string;
   cityName?: string;
   districtName?: string;
-  address?: string;
+  address?: string;   // address1 zorunlu
+  address2?: string;  // address2 opsiyonel
+  company?: string;
 }
 
 export interface Order {
@@ -29,44 +31,6 @@ export interface Order {
   barcode?: string;
 }
 
-interface RawShippingAddress {
-  first_name?: string;
-  last_name?: string;
-  address1?: string;
-  address2?: string;
-  city?: string;
-  province?: string;
-  zip?: string;
-  phone?: string;
-  company?: string;
-}
-
-interface RawCustomer {
-  first_name?: string;
-  last_name?: string;
-  email?: string;
-  phone?: string;
-  default_address?: RawShippingAddress;
-}
-
-interface RawOrder {
-  id: string;
-  name?: string;
-  total_price?: string;
-  customer?: RawCustomer;
-  shipping_address?: RawShippingAddress;
-  phone?: string;
-  email?: string;
-  created_at?: string;
-  shop?: string; // 👈 backend’ten geliyor
-}
-
-function normalize(str: string) {
-  if (!str) return '';
-  const lower = str.trim().toLocaleLowerCase('tr-TR');
-  return lower.charAt(0).toLocaleUpperCase('tr-TR') + lower.slice(1);
-}
-
 export default function OrderListPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
@@ -76,39 +40,57 @@ export default function OrderListPage() {
   }, []);
 
   const fetchOrders = async () => {
-  setLoading(true);
-  try {
-    const res = await getShopifyOrders();
-    console.log("BACKEND ORDER:", res.data.data[0]);
-    const backendOrders = res.data.data || [];
+    setLoading(true);
+    try {
+      const res = await getShopifyOrders();
+      const backendOrders = res.data.data || [];
 
-    const orderIds = backendOrders.map((o: any) => o.id).join(',');
+      const orderIds = backendOrders.map((o: any) => o.id).join(',');
+      const shipmentRes = await getShipmentsByOrderIds(orderIds);
+      const shipments = shipmentRes.data.data || [];
 
-    const shipmentRes = await getShipmentsByOrderIds(orderIds);
-    const shipments = shipmentRes.data.data || [];
+      const mergedOrders: Order[] = backendOrders.map((order: any) => {
+        const shipment = shipments.find(
+          (s: any) => s.shopifyOrderId === `gid://shopify/Order/${order.id}`
+        );
 
-    const mergedOrders = backendOrders.map((order: any) => {
-      const shipment = shipments.find(
-        (s: any) =>
-          s.shopifyOrderId === `gid://shopify/Order/${order.id}`
-      );
+        // Adres kaynağı: shipping > billing > default
+        const sourceAddress = order.customer?.default_address || order.shipping_address || {};
 
-      return {
-        ...order,
-        shop: order.shop || '',
-        trackingNumber: shipment?.trackingNumber,
-        labelUrl: shipment?.labelUrl,
-        barcode: shipment?.barcode,
-      };
-    });
+        return {
+          id: order.id,
+          name: order.name || `#${order.id}`,
+          total_price: order.total_price || '0',
+          shop: order.shop || '',
+          shopifyOrderId: `gid://shopify/Order/${order.id}`,
+          customer: {
+            name:
+              sourceAddress.first_name || sourceAddress.last_name
+                ? `${sourceAddress.first_name || ''} ${sourceAddress.last_name || ''}`.trim()
+                : `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
+            email: order.customer?.email || order.email || '',
+            phone: sourceAddress.phone || order.customer?.phone || order.phone || '',
+            cityName: sourceAddress.city || '',
+            districtName: sourceAddress.province || '',
+            address: sourceAddress.address1 || '',
+            address2: sourceAddress.address2 || '',
+            company: sourceAddress.company || '',
+          },
+          trackingNumber: shipment?.trackingNumber,
+          labelUrl: shipment?.labelUrl,
+          barcode: shipment?.barcode,
+          created_at: order.created_at,
+        };
+      });
 
-    setOrders(mergedOrders);
-  } catch (err) {
-    message.error('Siparişler alınamadı');
-  } finally {
-    setLoading(false);
-  }
-};
+      setOrders(mergedOrders);
+    } catch (err) {
+      console.error(err);
+      message.error('Siparişler alınamadı');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCustomerFieldChange = (
     orderId: string,
@@ -172,20 +154,11 @@ export default function OrderListPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div>
             <strong>Barkod:</strong>{' '}
-            {record.barcode ? (
-              <Text copyable>{record.barcode}</Text>
-            ) : (
-              'Yok'
-            )}
+            {record.barcode ? <Text copyable>{record.barcode}</Text> : 'Yok'}
           </div>
-
           <div>
             <strong>Takip No:</strong>{' '}
-            {record.trackingNumber ? (
-              <Text copyable>{record.trackingNumber}</Text>
-            ) : (
-              'Yok'
-            )}
+            {record.trackingNumber ? <Text copyable>{record.trackingNumber}</Text> : 'Yok'}
           </div>
         </div>
       ),
@@ -195,13 +168,24 @@ export default function OrderListPage() {
       title: 'Adres',
       width: 280,
       render: (_: any, record: Order) => (
-        <TextArea
-          value={record.customer.address}
-          autoSize={{ minRows: 2, maxRows: 4 }}
-          onChange={e =>
-            handleCustomerFieldChange(record.id, 'address', e.target.value)
-          }
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <TextArea
+            value={record.customer.address}
+            autoSize={{ minRows: 1, maxRows: 2 }}
+            placeholder="Adres satırı 1 (zorunlu)"
+            onChange={e =>
+              handleCustomerFieldChange(record.id, 'address', e.target.value)
+            }
+          />
+          <TextArea
+            value={record.customer.address2}
+            autoSize={{ minRows: 1, maxRows: 2 }}
+            placeholder="Adres satırı 2 (opsiyonel)"
+            onChange={e =>
+              handleCustomerFieldChange(record.id, 'address2', e.target.value)
+            }
+          />
+        </div>
       ),
     },
 
@@ -210,10 +194,7 @@ export default function OrderListPage() {
     {
       title: 'Kargo',
       render: (_: any, record: Order) => (
-        <MNGShipmentForm
-          order={record} // 🔴 shop artık burada
-          onShipmentCreated={handleShipmentCreated}
-        />
+        <MNGShipmentForm order={record} onShipmentCreated={handleShipmentCreated} />
       ),
     },
   ];
