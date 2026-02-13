@@ -16,10 +16,14 @@ export interface ShipmentResponse {
 /* ================================
    🔹 SHOPIFY SERVİSLERİ
 ================================ */
-export const getShopifyOrders = async (params?: {
+export interface GetShopifyOrdersParams {
   financial_status?: 'paid';
   fulfillment_status?: 'unfulfilled';
-}) => {
+  status?: 'any'; // <- burayı ekledik
+  limit?: number;
+}
+
+export const getShopifyOrders = async (params?: GetShopifyOrdersParams) => {
   return axios.get(`${API_URL}/shopify/orders`, { params });
 };
 

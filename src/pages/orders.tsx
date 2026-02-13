@@ -40,57 +40,68 @@ export default function OrderListPage() {
   }, []);
 
   const fetchOrders = async () => {
-    setLoading(true);
-    try {
-      const res = await getShopifyOrders();
-      const backendOrders = res.data.data || [];
+  setLoading(true);
+  try {
+    // Backend API'ye status parametresi gönderiyoruz → tüm siparişler gelir
+    const res = await getShopifyOrders({ status: 'any' });
+    const backendOrders = res.data.data || [];
 
-      const orderIds = backendOrders.map((o: any) => o.id).join(',');
-      const shipmentRes = await getShipmentsByOrderIds(orderIds);
-      const shipments = shipmentRes.data.data || [];
+    const orderIds = backendOrders.map((o: any) => o.id).join(',');
+    const shipmentRes = await getShipmentsByOrderIds(orderIds);
+    const shipments = shipmentRes.data.data || [];
 
-      const mergedOrders: Order[] = backendOrders.map((order: any) => {
-        const shipment = shipments.find(
-          (s: any) => s.shopifyOrderId === `gid://shopify/Order/${order.id}`
-        );
+    const mergedOrders: Order[] = backendOrders.map((order: any) => {
+      const shipment = shipments.find(
+        (s: any) => s.shopifyOrderId === `gid://shopify/Order/${order.id}`
+      );
 
-        // Adres kaynağı: shipping > billing > default
-        const sourceAddress = order.customer?.default_address || order.shipping_address || {};
+      // Adres kaynağı hiyerarşisi: shipping > billing > default
+      const sourceAddress =
+        order.shipping_address ||
+        order.customer?.default_address ||
+        order.billing_address ||
+        {};
 
-        return {
-          id: order.id,
-          name: order.name || `#${order.id}`,
-          total_price: order.total_price || '0',
-          shop: order.shop || '',
-          shopifyOrderId: `gid://shopify/Order/${order.id}`,
-          customer: {
-            name:
-              sourceAddress.first_name || sourceAddress.last_name
-                ? `${sourceAddress.first_name || ''} ${sourceAddress.last_name || ''}`.trim()
-                : `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim(),
-            email: order.customer?.email || order.email || '',
-            phone: sourceAddress.phone || order.customer?.phone || order.phone || '',
-            cityName: sourceAddress.city || '',
-            districtName: sourceAddress.province || '',
-            address: sourceAddress.address1 || '',
-            address2: sourceAddress.address2 || '',
-            company: sourceAddress.company || '',
-          },
-          trackingNumber: shipment?.trackingNumber,
-          labelUrl: shipment?.labelUrl,
-          barcode: shipment?.barcode,
-          created_at: order.created_at,
-        };
-      });
+      const customerName =
+        sourceAddress.first_name || sourceAddress.last_name
+          ? `${sourceAddress.first_name || ''} ${sourceAddress.last_name || ''}`.trim()
+          : `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim();
 
-      setOrders(mergedOrders);
-    } catch (err) {
-      console.error(err);
-      message.error('Siparişler alınamadı');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        id: order.id,
+        name: order.name || `#${order.id}`,
+        total_price: order.total_price || '0',
+        shop: order.shop || '',
+        shopifyOrderId: `gid://shopify/Order/${order.id}`,
+        customer: {
+          name: customerName,
+          email: order.customer?.email || order.email || '',
+          phone:
+            sourceAddress.phone ||
+            order.customer?.phone ||
+            order.phone ||
+            '',
+          cityName: sourceAddress.city || '',
+          districtName: sourceAddress.province || '',
+          address: sourceAddress.address1 || '',
+          address2: sourceAddress.address2 || '',
+          company: sourceAddress.company || '',
+        },
+        trackingNumber: shipment?.trackingNumber || '',
+        labelUrl: shipment?.labelUrl || '',
+        barcode: shipment?.barcode || '',
+        created_at: order.created_at,
+      };
+    });
+
+    setOrders(mergedOrders);
+  } catch (err) {
+    console.error(err);
+    message.error('Siparişler alınamadı');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleCustomerFieldChange = (
     orderId: string,
