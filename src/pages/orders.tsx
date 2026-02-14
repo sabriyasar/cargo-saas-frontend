@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Table, message, Input, Typography } from 'antd';
+import { Table, message, Input, Typography, Tag, Alert } from 'antd';
+import { WarningOutlined } from '@ant-design/icons';
 import AdminLayout from '@/components/Layout';
 import MNGShipmentForm from '../components/MNGShipmentForm';
 import { getShopifyOrders, getShipmentsByOrderIds } from '@/services/api';
@@ -13,8 +14,8 @@ interface Customer {
   phone?: string;
   cityName?: string;
   districtName?: string;
-  address?: string;   // address1 zorunlu
-  address2?: string;  // address2 opsiyonel
+  address?: string;
+  address2?: string;
   company?: string;
 }
 
@@ -29,88 +30,85 @@ export interface Order {
   trackingNumber?: string;
   labelUrl?: string;
   barcode?: string;
+  isMarketplace?: boolean; // ⭐ Yeni
 }
 
 export default function OrderListPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
+  const [missingAddressCount, setMissingAddressCount] = useState(0);
 
   useEffect(() => {
     fetchOrders();
   }, []);
-const fetchOrders = async () => {
-  setLoading(true);
-  try {
-    // 1️⃣ Backend'den siparişleri çek
-    const res = await getShopifyOrders({ status: 'any', limit: 50 });
-    
-    console.log('🔍 API Yanıtı:', res.data); // Debug için
-    
-    const backendOrders = res.data.data || [];
-    
-    if (backendOrders.length === 0) {
-      message.warning('Sipariş bulunamadı');
-      setOrders([]);
-      return;
-    }
 
-    // 2️⃣ Shipment bilgilerini çek
-    const orderIds = backendOrders.map((o: any) => o.id).join(',');
-    const shipmentRes = await getShipmentsByOrderIds(orderIds);
-    const shipments = shipmentRes.data.data || [];
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+      const res = await getShopifyOrders({ status: 'any', limit: 50 });
+      const backendOrders = res.data.data || [];
+      
+      if (backendOrders.length === 0) {
+        message.warning('Sipariş bulunamadı');
+        setOrders([]);
+        return;
+      }
 
-    // 3️⃣ Merge et - NULL-SAFE
-    const mergedOrders: Order[] = backendOrders.map((order: any) => {
-      const shipment = shipments.find(
-        (s: any) => s.shopifyOrderId === `gid://shopify/Order/${order.id}`
-      );
+      const orderIds = backendOrders.map((o: any) => o.id).join(',');
+      const shipmentRes = await getShipmentsByOrderIds(orderIds);
+      const shipments = shipmentRes.data.data || [];
 
-      return {
-        id: order.id,
-        name: order.name || `#${order.id}`,
-        total_price: order.total_price || '0',
-        shop: order.shop || '',
-        shopifyOrderId: `gid://shopify/Order/${order.id}`,
-        
-        customer: {
-          name: order.customer?.name || '',
-          email: order.customer?.email || '',
-          phone: order.customer?.phone || '',
-          cityName: order.shipping_address?.city || '',
-          districtName: order.shipping_address?.province || '',
-          address: order.shipping_address?.address1 || '',
-          address2: order.shipping_address?.address2 || '',
-          company: order.shipping_address?.company || ''
-        },
+      const mergedOrders: Order[] = backendOrders.map((order: any) => {
+        const shipment = shipments.find(
+          (s: any) => s.shopifyOrderId === `gid://shopify/Order/${order.id}`
+        );
 
-        trackingNumber: shipment?.trackingNumber || order.trackingNumber || '',
-        labelUrl: shipment?.labelUrl || '',
-        barcode: shipment?.barcode || '',
-        courier: shipment?.courier || order.courier || '',
-        
-        created_at: order.created_at
-      };
-    });
+        const hasAddress = !!(order.shipping_address?.address1);
+        const isMarketplace = !hasAddress && order.courier?.includes('Marketplace');
 
-    console.log('✅ Merge edilmiş siparişler:', mergedOrders.length);
-    setOrders(mergedOrders);
-    message.success(`${mergedOrders.length} sipariş yüklendi`);
-    
-  } catch (err: any) {
-    console.error('❌ Frontend hata:', err);
-    
-    // Detaylı hata mesajı
-    if (err.response?.data?.message) {
-      message.error(`Hata: ${err.response.data.message}`);
-    } else if (err.message) {
-      message.error(`Hata: ${err.message}`);
-    } else {
+        return {
+          id: order.id,
+          name: order.name || `#${order.id}`,
+          total_price: order.total_price || '0',
+          shop: order.shop || '',
+          shopifyOrderId: `gid://shopify/Order/${order.id}`,
+          isMarketplace,
+          
+          customer: {
+            name: order.customer?.name || '',
+            email: order.customer?.email || '',
+            phone: order.customer?.phone || '',
+            cityName: shipment?.city || order.shipping_address?.city || '',
+            districtName: shipment?.district || order.shipping_address?.province || '',
+            address: shipment?.address || order.shipping_address?.address1 || '',
+            address2: order.shipping_address?.address2 || '',
+            company: order.shipping_address?.company || ''
+          },
+
+          trackingNumber: shipment?.trackingNumber || order.trackingNumber || '',
+          labelUrl: shipment?.labelUrl || '',
+          barcode: shipment?.barcode || '',
+          courier: shipment?.courier || order.courier || '',
+          created_at: order.created_at
+        };
+      });
+
+      const missingCount = mergedOrders.filter(o => !o.customer.address).length;
+      setMissingAddressCount(missingCount);
+      setOrders(mergedOrders);
+      
+      message.success(`${mergedOrders.length} sipariş yüklendi`);
+      if (missingCount > 0) {
+        message.warning(`${missingCount} siparişte adres eksik (marketplace)`);
+      }
+      
+    } catch (err: any) {
+      console.error('❌ Frontend hata:', err);
       message.error('Siparişler alınamadı');
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleCustomerFieldChange = (
     orderId: string,
@@ -154,13 +152,25 @@ const fetchOrders = async () => {
   };
 
   const columns = [
-    { title: 'Sipariş No', dataIndex: 'name' },
+    { 
+      title: 'Sipariş No', 
+      dataIndex: 'name',
+      render: (name: string, record: Order) => (
+        <div>
+          {name}
+          {record.isMarketplace && (
+            <Tag color="orange" style={{ marginLeft: 8 }}>Marketplace</Tag>
+          )}
+        </div>
+      )
+    },
 
     {
       title: 'Müşteri',
       render: (_: any, record: Order) => (
         <Input
           value={record.customer.name}
+          placeholder="Müşteri adı"
           onChange={e =>
             handleCustomerFieldChange(record.id, 'name', e.target.value)
           }
@@ -186,13 +196,22 @@ const fetchOrders = async () => {
 
     {
       title: 'Adres',
-      width: 280,
+      width: 300,
       render: (_: any, record: Order) => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {!record.customer.address && record.isMarketplace && (
+            <Alert
+              message="⚠️ Marketplace siparişi - adres manuel girilmeli"
+              type="warning"
+              showIcon
+              style={{ marginBottom: 4, fontSize: 11, padding: '4px 8px' }}
+            />
+          )}
           <TextArea
             value={record.customer.address}
             autoSize={{ minRows: 1, maxRows: 2 }}
-            placeholder="Adres satırı 1 (zorunlu)"
+            placeholder="⚠️ Adres girilmedi - lütfen girin"
+            status={!record.customer.address ? 'error' : undefined}
             onChange={e =>
               handleCustomerFieldChange(record.id, 'address', e.target.value)
             }
@@ -221,7 +240,19 @@ const fetchOrders = async () => {
 
   return (
     <AdminLayout>
-      <h2>Gönderiler</h2>
+      <div style={{ marginBottom: 16 }}>
+        <h2>Gönderiler</h2>
+        {missingAddressCount > 0 && (
+          <Alert
+            message={`${missingAddressCount} siparişte adres bilgisi eksik`}
+            description="Marketplace siparişlerinde adres bilgileri Shopify tarafından gizlenmektedir. Kargo oluşturmadan önce manuel olarak giriniz."
+            type="info"
+            showIcon
+            icon={<WarningOutlined />}
+            closable
+          />
+        )}
+      </div>
       <Table
         rowKey="id"
         columns={columns}
