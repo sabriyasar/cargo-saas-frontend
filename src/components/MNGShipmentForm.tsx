@@ -86,15 +86,15 @@ const normalizePhone = (phone = '') =>
 export default function MNGShipmentForm({ order, isReturn = false, onShipmentCreated }: Props) {
   const [loading, setLoading] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
-  const [districts, setDistricts] = useState<District[]>([]);
   const [selectedCity, setSelectedCity] = useState(order.customer.cityName || '');
 const [selectedDistrict, setSelectedDistrict] = useState(order.customer.districtName || '');
+const [districts, setDistricts] = useState<District[]>([]);
+const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [courier, setCourier] = useState('MNG');
   const [paymentType, setPaymentType] = useState<number>(1);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [labelUrl, setLabelUrl] = useState('');
   const [barcode, setBarcode] = useState('');
-  const [loadingDistricts, setLoadingDistricts] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3003';
 
@@ -176,35 +176,36 @@ const [selectedDistrict, setSelectedDistrict] = useState(order.customer.district
   };
 
   const fetchDistricts = async (cityCode: string) => {
-    setLoadingDistricts(true);
-    try {
-      const res = await getDistrictsByCityCode(cityCode);
-      const districtList: District[] = (res.data?.data || res.data || []).map((d: any) => ({
-        ...d,
-        name: formatDisplayName(d.name), // <-- Darıca gibi
-      }));
-      setDistricts(districtList);
-  
-      // Shopify müşteri ilçesini eşle
-      if (order.customer.districtName) {
-        const normalizedDistrict = normalizeCityName(order.customer.districtName);
-        const foundDistrict = districtList.find(d => normalizeCityName(d.name) === normalizedDistrict);
-        if (foundDistrict) setSelectedDistrict(formatDisplayName(foundDistrict.name)); // <-- burada
-      }
-    } catch (err) {
-      console.error('İlçeler alınamadı', err);
-      message.error('İlçeler alınamadı.');
-      setDistricts([]);
-    } finally {
-      setLoadingDistricts(false);
+  setLoadingDistricts(true);
+  try {
+    const res = await getDistrictsByCityCode(cityCode); // API: /districts/:cityCode
+    const districtList: District[] = (res.data?.data || res.data || []).map((d: any) => ({
+      code: d.code,
+      name: formatDisplayName(d.name),
+    }));
+    setDistricts(districtList);
+
+    // Shopify’den gelen districtName varsa eşle
+    if (order.customer.districtName) {
+      const found = districtList.find(
+        d => d.name.toLocaleLowerCase('tr-TR') === order.customer.districtName?.toLocaleLowerCase('tr-TR')
+      );
+      if (found) setSelectedDistrict(found.name);
     }
-  };
+  } catch (err) {
+    console.error('İlçeler alınamadı', err);
+    message.error('İlçeler alınamadı');
+    setDistricts([]);
+  } finally {
+    setLoadingDistricts(false);
+  }
+};
 
   const handleCityChange = (value: string) => {
   setSelectedCity(value);
-  setSelectedDistrict(''); // şehir değişince ilçeyi sıfırla
+  setSelectedDistrict(''); // önce sıfırla
   const city = cities.find(c => c.name === value);
-  if (city) fetchDistricts(city.code); // yeni şehir için ilçeleri çek
+  if (city) fetchDistricts(city.code);
 };
 
   // ------------------ Shipment + Barcode Oluşturma ------------------
