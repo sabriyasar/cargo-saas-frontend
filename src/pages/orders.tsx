@@ -38,34 +38,32 @@ export default function OrderListPage() {
   useEffect(() => {
     fetchOrders();
   }, []);
-
-  const fetchOrders = async () => {
+const fetchOrders = async () => {
   setLoading(true);
   try {
-    // Backend API'ye status parametresi gönderiyoruz → tüm siparişler gelir
-    const res = await getShopifyOrders({ status: 'any' });
+    // 1️⃣ Backend'den siparişleri çek
+    const res = await getShopifyOrders({ status: 'any', limit: 50 });
+    
+    console.log('🔍 API Yanıtı:', res.data); // Debug için
+    
     const backendOrders = res.data.data || [];
+    
+    if (backendOrders.length === 0) {
+      message.warning('Sipariş bulunamadı');
+      setOrders([]);
+      return;
+    }
 
+    // 2️⃣ Shipment bilgilerini çek
     const orderIds = backendOrders.map((o: any) => o.id).join(',');
     const shipmentRes = await getShipmentsByOrderIds(orderIds);
     const shipments = shipmentRes.data.data || [];
 
+    // 3️⃣ Merge et - NULL-SAFE
     const mergedOrders: Order[] = backendOrders.map((order: any) => {
       const shipment = shipments.find(
         (s: any) => s.shopifyOrderId === `gid://shopify/Order/${order.id}`
       );
-
-      // Adres kaynağı hiyerarşisi: shipping > billing > default
-      const sourceAddress =
-        order.shipping_address ||
-        order.customer?.default_address ||
-        order.billing_address ||
-        {};
-
-      const customerName =
-        sourceAddress.first_name || sourceAddress.last_name
-          ? `${sourceAddress.first_name || ''} ${sourceAddress.last_name || ''}`.trim()
-          : `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim();
 
       return {
         id: order.id,
@@ -73,31 +71,42 @@ export default function OrderListPage() {
         total_price: order.total_price || '0',
         shop: order.shop || '',
         shopifyOrderId: `gid://shopify/Order/${order.id}`,
+        
         customer: {
-          name: customerName,
-          email: order.customer?.email || order.email || '',
-          phone:
-            sourceAddress.phone ||
-            order.customer?.phone ||
-            order.phone ||
-            '',
-          cityName: sourceAddress.city || '',
-          districtName: sourceAddress.province || '',
-          address: sourceAddress.address1 || '',
-          address2: sourceAddress.address2 || '',
-          company: sourceAddress.company || '',
+          name: order.customer?.name || '',
+          email: order.customer?.email || '',
+          phone: order.customer?.phone || '',
+          cityName: order.shipping_address?.city || '',
+          districtName: order.shipping_address?.province || '',
+          address: order.shipping_address?.address1 || '',
+          address2: order.shipping_address?.address2 || '',
+          company: order.shipping_address?.company || ''
         },
-        trackingNumber: shipment?.trackingNumber || '',
+
+        trackingNumber: shipment?.trackingNumber || order.trackingNumber || '',
         labelUrl: shipment?.labelUrl || '',
         barcode: shipment?.barcode || '',
-        created_at: order.created_at,
+        courier: shipment?.courier || order.courier || '',
+        
+        created_at: order.created_at
       };
     });
 
+    console.log('✅ Merge edilmiş siparişler:', mergedOrders.length);
     setOrders(mergedOrders);
-  } catch (err) {
-    console.error(err);
-    message.error('Siparişler alınamadı');
+    message.success(`${mergedOrders.length} sipariş yüklendi`);
+    
+  } catch (err: any) {
+    console.error('❌ Frontend hata:', err);
+    
+    // Detaylı hata mesajı
+    if (err.response?.data?.message) {
+      message.error(`Hata: ${err.response.data.message}`);
+    } else if (err.message) {
+      message.error(`Hata: ${err.message}`);
+    } else {
+      message.error('Siparişler alınamadı');
+    }
   } finally {
     setLoading(false);
   }
