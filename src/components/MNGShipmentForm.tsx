@@ -87,8 +87,8 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
   const [loading, setLoading] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
-  const [selectedCity, setSelectedCity] = useState('');
-  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedCity, setSelectedCity] = useState(order.customer.cityName || '');
+const [selectedDistrict, setSelectedDistrict] = useState(order.customer.districtName || '');
   const [courier, setCourier] = useState('MNG');
   const [paymentType, setPaymentType] = useState<number>(1);
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -105,26 +105,27 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
   }, []);
 
   useEffect(() => {
-    if (!cities.length) return;
+  if (!cities.length || !order.customer.cityName) return;
 
-    // Shopify müşteri şehir bilgisini normalize ederek eşle
-    const normalizedCustomerCity = normalizeCityName(order.customer.cityName);
-    const foundCity = cities.find(c => normalizeCityName(c.name) === normalizedCustomerCity);
+  const foundCity = cities.find(
+    c => c.name.toLocaleLowerCase('tr-TR') === order.customer.cityName?.toLocaleLowerCase('tr-TR')
+  );
 
-    if (foundCity) {
-      setSelectedCity(foundCity.name);
-      fetchDistricts(foundCity.code);
-    }
-  }, [cities]);
+  if (foundCity) {
+    setSelectedCity(foundCity.name);
+    fetchDistricts(foundCity.code); // ilçe listesi çek
+  }
+}, [cities, order.customer.cityName]);
 
   useEffect(() => {
-    if (!districts.length || !order.customer.districtName) return;
-  
-    const normalizedDistrict = normalizeCityName(order.customer.districtName);
-    const foundDistrict = districts.find(d => normalizeCityName(d.name) === normalizedDistrict);
-  
-    if (foundDistrict) setSelectedDistrict(formatDisplayName(foundDistrict.name)); // <-- burada
-  }, [districts, order.customer.districtName]);  
+  if (!districts.length || !order.customer.districtName) return;
+
+  const foundDistrict = districts.find(
+    d => d.name.toLocaleLowerCase('tr-TR') === order.customer.districtName?.toLocaleLowerCase('tr-TR')
+  );
+
+  if (foundDistrict) setSelectedDistrict(foundDistrict.name);
+}, [districts, order.customer.districtName]);
 
   // ------------------ Mevcut Shipment Adresi Backend’den Çek ------------------
 
@@ -200,11 +201,11 @@ export default function MNGShipmentForm({ order, isReturn = false, onShipmentCre
   };
 
   const handleCityChange = (value: string) => {
-    setSelectedCity(formatDisplayName(value)); // <-- burayı ekle
-    setSelectedDistrict('');
-    const city = cities.find(c => c.name === formatDisplayName(value));
-    if (city) fetchDistricts(city.code);
-  };  
+  setSelectedCity(value);
+  setSelectedDistrict(''); // şehir değişince ilçeyi sıfırla
+  const city = cities.find(c => c.name === value);
+  if (city) fetchDistricts(city.code); // yeni şehir için ilçeleri çek
+};
 
   // ------------------ Shipment + Barcode Oluşturma ------------------
 
