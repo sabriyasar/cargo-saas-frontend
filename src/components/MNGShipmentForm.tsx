@@ -117,14 +117,25 @@ const [loadingDistricts, setLoadingDistricts] = useState(false);
   }
 }, [cities, order.customer.cityName]);
 
-  useEffect(() => {
-  if (!districts.length || !order.customer.districtName) return;
+  // districts değiştiğinde Shopify districtName varsa eşle
+useEffect(() => {
+  if (!districts.length) return;
 
-  const foundDistrict = districts.find(
-    d => d.name.toLocaleLowerCase('tr-TR') === order.customer.districtName?.toLocaleLowerCase('tr-TR')
+  // Shopify'dan gelen districtName
+  const shopifyDistrict = order.customer.districtName?.trim();
+  if (!shopifyDistrict) return;
+
+  // normalize ederek eşle
+  const matched = districts.find(
+    d => d.name.toLocaleLowerCase('tr-TR') === shopifyDistrict.toLocaleLowerCase('tr-TR')
   );
 
-  if (foundDistrict) setSelectedDistrict(foundDistrict.name);
+  if (matched) {
+    setSelectedDistrict(matched.name);
+  } else {
+    // districtName Shopify'dan gelmiş ama MNG listesinde yoksa direk göster
+    setSelectedDistrict(shopifyDistrict);
+  }
 }, [districts, order.customer.districtName]);
 
   // ------------------ Mevcut Shipment Adresi Backend’den Çek ------------------
@@ -186,16 +197,26 @@ const [loadingDistricts, setLoadingDistricts] = useState(false);
     setDistricts(districtList);
 
     // Shopify’den gelen districtName varsa eşle
+    let selected = '';
     if (order.customer.districtName) {
       const found = districtList.find(
         d => d.name.toLocaleLowerCase('tr-TR') === order.customer.districtName?.toLocaleLowerCase('tr-TR')
       );
-      if (found) setSelectedDistrict(found.name);
+      if (found) selected = found.name;
     }
+
+    // districtName yoksa ilk ilçeyi seç
+    if (!selected && districtList.length > 0) {
+      selected = districtList[0].name;
+    }
+
+    setSelectedDistrict(selected);
+
   } catch (err) {
     console.error('İlçeler alınamadı', err);
     message.error('İlçeler alınamadı');
     setDistricts([]);
+    setSelectedDistrict('');
   } finally {
     setLoadingDistricts(false);
   }

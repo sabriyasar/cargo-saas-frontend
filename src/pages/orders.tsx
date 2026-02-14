@@ -18,6 +18,7 @@ export interface Customer {
   address2?: string;
   company?: string;
   customerId?: string | number;
+  zip?: string; // Shopify'dan gelirse burada tutabiliriz
 }
 
 export interface Order {
@@ -162,43 +163,34 @@ export default function OrderListPage() {
       ),
     },
     {
-      title: 'Adres',
-      width: 300,
-      render: (_: any, record: Order) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <TextArea
-            value={record.customer.address || ''}
-            autoSize={{ minRows: 1, maxRows: 2 }}
-            placeholder="Adres"
-            onChange={e =>
-              handleCustomerFieldChange(record.id, 'address', e.target.value)
-            }
-          />
-          <TextArea
-            value={record.customer.address2 || ''}
-            autoSize={{ minRows: 1, maxRows: 2 }}
-            placeholder="Adres satırı 2 (opsiyonel)"
-            onChange={e =>
-              handleCustomerFieldChange(record.id, 'address2', e.target.value)
-            }
-          />
-          <Input
-            value={record.customer.cityName || ''}
-            placeholder="Şehir"
-            onChange={e =>
-              handleCustomerFieldChange(record.id, 'cityName', e.target.value)
-            }
-          />
-          <Input
-            value={record.customer.districtName || ''}
-            placeholder="İlçe"
-            onChange={e =>
-              handleCustomerFieldChange(record.id, 'districtName', e.target.value)
-            }
-          />
-        </div>
-      ),
-    },
+  title: 'Adres',
+  width: 400,
+  render: (_: any, record: Order) => {
+    const c = record.customer;
+
+    // Tek string olarak tüm adres
+    const fullAddress = [
+      c.address || '',
+      c.address2 || '',
+      c.districtName || '',
+      c.cityName || '',
+      c.zip || ''
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    return (
+      <TextArea
+        value={fullAddress}
+        autoSize={{ minRows: 2, maxRows: 4 }}
+        placeholder="Adres"
+        onChange={e =>
+          handleCustomerFieldChange(record.id, 'address', e.target.value)
+        }
+      />
+    );
+  },
+},
     { title: 'Toplam', dataIndex: 'total_price' },
     {
   title: 'Kargo',
