@@ -19,19 +19,11 @@ export interface ShipmentResponse {
 export interface GetShopifyOrdersParams {
   financial_status?: 'paid';
   fulfillment_status?: 'unfulfilled';
-  status?: 'any';
+  status?: 'any'; // <- burayı ekledik
   limit?: number;
 }
 
-// ⭐ GraphQL endpoint kullan (rate limit yok, tam veri)
 export const getShopifyOrders = async (params?: GetShopifyOrdersParams) => {
-  return axios.get(`${API_URL}/shopify/orders-graphql`, { 
-    params: { limit: params?.limit || 50 } 
-  });
-};
-
-// ⭐ Eski REST endpoint (gerekirse kullanılabilir)
-export const getShopifyOrdersREST = async (params?: GetShopifyOrdersParams) => {
   return axios.get(`${API_URL}/shopify/orders`, { params });
 };
 
