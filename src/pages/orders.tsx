@@ -30,7 +30,7 @@ export interface Order {
   trackingNumber?: string;
   labelUrl?: string;
   barcode?: string;
-  isMarketplace?: boolean; // ⭐ Yeni
+  isMarketplace?: boolean;
 }
 
 export default function OrderListPage() {
@@ -45,8 +45,12 @@ export default function OrderListPage() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
+      console.log('📥 Siparişler yükleniyor...');
+      
       const res = await getShopifyOrders({ status: 'any', limit: 50 });
       const backendOrders = res.data.data || [];
+      
+      console.log('📦 Backend\'den gelen sipariş sayısı:', backendOrders.length);
       
       if (backendOrders.length === 0) {
         message.warning('Sipariş bulunamadı');
@@ -54,9 +58,24 @@ export default function OrderListPage() {
         return;
       }
 
+      // İlk 2 siparişin RAW verisini logla
+      console.log('🔍 İlk 2 sipariş RAW verisi:');
+      backendOrders.slice(0, 2).forEach((order: any, index: number) => {
+        console.log(`  ${index + 1}. Sipariş #${order.name}:`, {
+          id: order.id,
+          shipping_address: order.shipping_address,
+          customer: order.customer,
+          courier: order.courier
+        });
+      });
+
       const orderIds = backendOrders.map((o: any) => o.id).join(',');
+      console.log('🔍 Shipment sorgusu için order IDs:', orderIds.split(',').length + ' adet');
+      
       const shipmentRes = await getShipmentsByOrderIds(orderIds);
       const shipments = shipmentRes.data.data || [];
+      
+      console.log('📦 Bulunan shipment sayısı:', shipments.length);
 
       const mergedOrders: Order[] = backendOrders.map((order: any) => {
         const shipment = shipments.find(
@@ -66,7 +85,7 @@ export default function OrderListPage() {
         const hasAddress = !!(order.shipping_address?.address1);
         const isMarketplace = !hasAddress && order.courier?.includes('Marketplace');
 
-        return {
+        const merged = {
           id: order.id,
           name: order.name || `#${order.id}`,
           total_price: order.total_price || '0',
@@ -91,15 +110,36 @@ export default function OrderListPage() {
           courier: shipment?.courier || order.courier || '',
           created_at: order.created_at
         };
+
+        return merged;
+      });
+
+      // İlk 2 merge edilmiş siparişi logla
+      console.log('✅ İlk 2 MERGE EDİLMİŞ sipariş:');
+      mergedOrders.slice(0, 2).forEach((order, index) => {
+        console.log(`  ${index + 1}. Sipariş #${order.name}:`, {
+          customer_name: order.customer.name,
+          address: order.customer.address,
+          city: order.customer.cityName,
+          province: order.customer.districtName,
+          isMarketplace: order.isMarketplace,
+          hasShipment: !!order.trackingNumber
+        });
       });
 
       const missingCount = mergedOrders.filter(o => !o.customer.address).length;
       setMissingAddressCount(missingCount);
       setOrders(mergedOrders);
       
+      console.log('📊 Özet:', {
+        totalOrders: mergedOrders.length,
+        missingAddress: missingCount,
+        withShipment: mergedOrders.filter(o => !!o.trackingNumber).length
+      });
+      
       message.success(`${mergedOrders.length} sipariş yüklendi`);
       if (missingCount > 0) {
-        message.warning(`${missingCount} siparişte adres eksik (marketplace)`);
+        message.warning(`${missingCount} siparişte adres eksik`);
       }
       
     } catch (err: any) {
@@ -245,7 +285,7 @@ export default function OrderListPage() {
         {missingAddressCount > 0 && (
           <Alert
             message={`${missingAddressCount} siparişte adres bilgisi eksik`}
-            description="Marketplace siparişlerinde adres bilgileri Shopify tarafından gizlenmektedir. Kargo oluşturmadan önce manuel olarak giriniz."
+            description="Kargo oluşturmadan önce manuel olarak adres giriniz."
             type="info"
             showIcon
             icon={<WarningOutlined />}
