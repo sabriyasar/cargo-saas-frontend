@@ -19,32 +19,12 @@ export interface ShipmentResponse {
 export interface GetShopifyOrdersParams {
   financial_status?: 'paid';
   fulfillment_status?: 'unfulfilled';
-  status?: 'any';
+  status?: 'any'; // <- burayı ekledik
   limit?: number;
 }
 
 export const getShopifyOrders = async (params?: GetShopifyOrdersParams) => {
-  console.log('🔍 API İsteği gönderiliyor:', `${API_URL}/shopify/orders`, params);
-  
-  const response = await axios.get(`${API_URL}/shopify/orders`, { params });
-  
-  console.log('✅ API Yanıtı alındı:', {
-    success: response.data.success,
-    totalOrders: response.data.data?.length || 0,
-    firstOrder: response.data.data?.[0] || null
-  });
-  
-  // İlk 3 siparişin adres bilgilerini detaylı logla
-  if (response.data.data && response.data.data.length > 0) {
-    console.log('📦 İlk 3 sipariş adresleri:');
-    response.data.data.slice(0, 3).forEach((order: any, index: number) => {
-      console.log(`  ${index + 1}. Sipariş #${order.name}:`);
-      console.log('     shipping_address:', order.shipping_address);
-      console.log('     customer:', order.customer);
-    });
-  }
-  
-  return response;
+  return axios.get(`${API_URL}/shopify/orders`, { params });
 };
 
 export const createShopifyFulfillment = async (orderId: string, trackingNumber: string) => {
@@ -90,17 +70,7 @@ export const createIndividualMNGShipment = async (orderData: any, courier: strin
 };
 
 export const getShipmentsByOrderIds = async (orderIds: string) => {
-  console.log('🔍 Shipment sorgusu:', `${API_URL}/shipments?orderIds=${orderIds}`);
-  
-  const response = await axios.get(`${API_URL}/shipments?orderIds=${orderIds}`);
-  
-  console.log('✅ Shipment yanıtı:', {
-    success: response.data.success,
-    count: response.data.count,
-    totalShipments: response.data.data?.length || 0
-  });
-  
-  return response;
+  return axios.get(`${API_URL}/shipments?orderIds=${orderIds}`);
 };
 
 /* ================================
